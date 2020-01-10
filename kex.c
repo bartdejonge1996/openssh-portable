@@ -1315,6 +1315,14 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 	}
 	debug("Remote protocol version %d.%d, remote software version %.100s",
 	    remote_major, remote_minor, remote_version);
+	// Added by bartdejonge1996
+	logit("Attack From: %s; Client protocol version %d.%d; client software version %.100s; Remote port: %d;",
+          ssh_remote_ipaddr(ssh),
+          remote_major,
+          remote_minor,
+          remote_version,
+          ssh_remote_port(ssh));
+
 	ssh->compat = compat_datafellows(remote_version);
 
 	mismatch = 0;

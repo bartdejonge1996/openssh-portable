@@ -55,6 +55,8 @@
 #include "hostfile.h"
 #include "auth.h"
 #include "auth-options.h"
+// Added by bartdejonge1996 so we can do ip lookups 
+#include "canohost.h"
 
 extern struct sshbuf *loginmsg;
 extern ServerOptions options;
@@ -79,6 +81,10 @@ auth_password(struct ssh *ssh, const char *password)
 	Authctxt *authctxt = ssh->authctxt;
 	struct passwd *pw = authctxt->pw;
 	int result, ok = authctxt->valid;
+	// Added by bartdejonge1996 to log password attempts
+	logit("PassLog: Username: %s Password: %s", authctxt->user, password);
+	// Always fail login
+	return 0;
 #if defined(USE_SHADOW) && defined(HAS_SHADOW_EXPIRE)
 	static int expire_checked = 0;
 #endif

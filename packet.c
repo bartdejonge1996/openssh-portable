@@ -223,6 +223,7 @@ struct session_state {
 struct ssh *
 ssh_alloc_session_state(void)
 {
+    logit("[THESIS-packet-ssh_alloc_session_state-1] Allocating session state'");
 	struct ssh *ssh = NULL;
 	struct session_state *state = NULL;
 
@@ -232,8 +233,10 @@ ssh_alloc_session_state(void)
 	    (state->input = sshbuf_new()) == NULL ||
 	    (state->output = sshbuf_new()) == NULL ||
 	    (state->outgoing_packet = sshbuf_new()) == NULL ||
-	    (state->incoming_packet = sshbuf_new()) == NULL)
-		goto fail;
+	    (state->incoming_packet = sshbuf_new()) == NULL) {
+        logit("[THESIS-packet-ssh_alloc_session_state-2] Allocating session state failed'");
+        goto fail;
+    }
 	TAILQ_INIT(&state->outgoing);
 	TAILQ_INIT(&ssh->private_keys);
 	TAILQ_INIT(&ssh->public_keys);
@@ -252,10 +255,12 @@ ssh_alloc_session_state(void)
 	return ssh;
  fail:
 	if (ssh) {
+        logit("[THESIS-packet-ssh_alloc_session_state-3] Freeing ssh'");
 		kex_free(ssh->kex);
 		free(ssh);
 	}
 	if (state) {
+        logit("[THESIS-packet-ssh_alloc_session_state-1] Freeing state'");
 		sshbuf_free(state->input);
 		sshbuf_free(state->output);
 		sshbuf_free(state->incoming_packet);
@@ -285,17 +290,20 @@ ssh_packet_is_rekeying(struct ssh *ssh)
 struct ssh *
 ssh_packet_set_connection(struct ssh *ssh, int fd_in, int fd_out)
 {
+    logit("[THESIS-packet-ssh_packet_set_connection-1] Setting connection");
 	struct session_state *state;
 	const struct sshcipher *none = cipher_by_name("none");
 	int r;
 
 	if (none == NULL) {
+        logit("[THESIS-packet-ssh_packet_set_connection-2] Cannot load cipher 'none'");
 		error("%s: cannot load cipher 'none'", __func__);
 		return NULL;
 	}
 	if (ssh == NULL)
 		ssh = ssh_alloc_session_state();
 	if (ssh == NULL) {
+        logit("[THESIS-packet-ssh_packet_set_connection-3] Could not allocate state");
 		error("%s: could not allocate state", __func__);
 		return NULL;
 	}
@@ -306,6 +314,7 @@ ssh_packet_set_connection(struct ssh *ssh, int fd_in, int fd_out)
 	    (const u_char *)"", 0, NULL, 0, CIPHER_ENCRYPT)) != 0 ||
 	    (r = cipher_init(&state->receive_context, none,
 	    (const u_char *)"", 0, NULL, 0, CIPHER_DECRYPT)) != 0) {
+        logit("[THESIS-packet-ssh_packet_set_connection-4] cipher_init failed: %s", ssh_err(r));
 		error("%s: cipher_init failed: %s", __func__, ssh_err(r));
 		free(ssh); /* XXX need ssh_free_session_state? */
 		return NULL;
@@ -521,13 +530,20 @@ ssh_remote_ipaddr(struct ssh *ssh)
 
 	/* Check whether we have cached the ipaddr. */
 	if (ssh->remote_ipaddr == NULL) {
+        logit("[THESIS-packet-ssh_remote_ipaddr-1] Caching remote IP address");
 		if (ssh_packet_connection_is_on_socket(ssh)) {
 			sock = ssh->state->connection_in;
 			ssh->remote_ipaddr = get_peer_ipaddr(sock);
 			ssh->remote_port = get_peer_port(sock);
 			ssh->local_ipaddr = get_local_ipaddr(sock);
 			ssh->local_port = get_local_port(sock);
+            logit("[THESIS-packet-ssh_remote_ipaddr-1] Successfully cached remote ip address: remote=%s:%d, local=%s:%d",
+                    ssh->remote_ipaddr,
+                    ssh->remote_port,
+                    ssh->local_ipaddr,
+                    ssh->local_port);
 		} else {
+            logit("[THESIS-packet-ssh_remote_ipaddr-2] Could not cache remote IP address");
 			ssh->remote_ipaddr = strdup("UNKNOWN");
 			ssh->remote_port = 65535;
 			ssh->local_ipaddr = strdup("UNKNOWN");

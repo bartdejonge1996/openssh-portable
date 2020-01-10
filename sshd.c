@@ -1914,6 +1914,7 @@ main(int ac, char **av)
 	/* Get a connection, either from inetd or a listening TCP socket */
 	if (inetd_flag) {
 		server_accept_inetd(&sock_in, &sock_out);
+		logit("[THESIS-sshd-main-1] Got connection from inetd");
 	} else {
 		platform_pre_listen();
 		server_listen();
@@ -1942,6 +1943,7 @@ main(int ac, char **av)
 		/* Accept a connection and return in a forked child */
 		server_accept_loop(&sock_in, &sock_out,
 		    &newsock, config_s);
+        logit("[THESIS-sshd-main-2] Got connection from socket");
 	}
 
 	/* This is the child processing a new connection. */
@@ -1959,12 +1961,14 @@ main(int ac, char **av)
 	 * controlling tty" errors.
 	 */
 	if (!debug_flag && !inetd_flag && setsid() == -1)
+	    logit("[THESIS-sshd-main-3] setsid: %.100s", strerror(errno));
 		error("setsid: %.100s", strerror(errno));
 #endif
 
 	if (rexec_flag) {
 		int fd;
 
+		logit("[THESIS-sshd-main-4] performing rexec");
 		debug("rexec start in %d out %d newsock %d pipe %d sock %d",
 		    sock_in, sock_out, newsock, startup_pipe, config_s[0]);
 		dup2(newsock, STDIN_FILENO);
@@ -1983,6 +1987,7 @@ main(int ac, char **av)
 		execv(rexec_argv[0], rexec_argv);
 
 		/* Reexec has failed, fall back and continue */
+        logit("[THESIS-sshd-main-5] rexec of %s failed: %s", rexec_argv[0], strerror(errno));
 		error("rexec of %s failed: %s", rexec_argv[0], strerror(errno));
 		recv_rexec_state(REEXEC_CONFIG_PASS_FD, NULL);
 		log_init(__progname, options.log_level,
@@ -2022,8 +2027,10 @@ main(int ac, char **av)
 	 * Register our connection.  This turns encryption off because we do
 	 * not have a key.
 	 */
-	if ((ssh = ssh_packet_set_connection(NULL, sock_in, sock_out)) == NULL)
-		fatal("Unable to create connection");
+	if ((ssh = ssh_packet_set_connection(NULL, sock_in, sock_out)) == NULL) {
+	    logit("[THESIS-sshd-main-6] Failed to register connection");
+	    fatal("Unable to create connection");
+    }
 	the_active_state = ssh;
 	ssh_packet_set_server(ssh);
 

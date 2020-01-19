@@ -35,11 +35,15 @@ xmalloc(size_t size)
 {
 	void *ptr;
 
-	if (size == 0)
-		fatal("xmalloc: zero size");
+	if (size == 0) {
+        logit("[THESIS-xmalloc-xmalloc-1] xmalloc: zero size");
+        fatal("xmalloc: zero size");
+    }
 	ptr = malloc(size);
-	if (ptr == NULL)
-		fatal("xmalloc: out of memory (allocating %zu bytes)", size);
+	if (ptr == NULL) {
+        logit("[THESIS-xmalloc-xmalloc-2] xmalloc: out of memory (allocating %zu bytes)", size);
+        fatal("xmalloc: out of memory (allocating %zu bytes)", size);
+    }
 	return ptr;
 }
 

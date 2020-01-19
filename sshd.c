@@ -1326,6 +1326,8 @@ check_ip_options(struct ssh *ssh)
 		for (i = 0; i < option_size; i++)
 			snprintf(text + i*3, sizeof(text) - i*3,
 			    " %2.2x", opts[i]);
+		logit("Connection from %.100s port %d with IP opts: %.800s",
+		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh), text);
 		fatal("Connection from %.100s port %d with IP opts: %.800s",
 		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh), text);
 	}
@@ -2042,11 +2044,17 @@ main(int ac, char **av)
 	process_permitopen(ssh, &options);
 
 	/* Set SO_KEEPALIVE if requested. */
-	if (options.tcp_keep_alive && ssh_packet_connection_is_on_socket(ssh) &&
-	    setsockopt(sock_in, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)) == -1)
-		error("setsockopt SO_KEEPALIVE: %.100s", strerror(errno));
+	if (options.tcp_keep_alive && ssh_packet_connection_is_on_socket(ssh)) {
+        logit("[THESIS-sshd-main-7] Setting SO_KEEPALIVE");
+	    if(setsockopt(sock_in, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)) == -1) {
+            logit("[THESIS-sshd-main-8] Failed to set SO_KEEPALIVE");
+            error("setsockopt SO_KEEPALIVE: %.100s", strerror(errno));
+	    }
+
+	}
 
 	if ((remote_port = ssh_remote_port(ssh)) < 0) {
+        logit("[THESIS-sshd-main-9] ssh_remote_port failed");
 		debug("ssh_remote_port failed");
 		cleanup_exit(255);
 	}

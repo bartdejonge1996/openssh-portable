@@ -882,17 +882,23 @@ process_permitopen_list(struct ssh *ssh, ServerOpCodes opcode,
 	const char *what = lookup_opcode_name(opcode);
 
 	channel_clear_permission(ssh, FORWARD_ADM, where);
-	if (num_opens == 0)
-		return; /* permit any */
+	if (num_opens == 0) {
+        logit("[THESIS-servconf-process_permitopen_list-1] permit any forwarding direction");
+        return; /* permit any */
+    }
 
 	/* handle keywords: "any" / "none" */
-	if (num_opens == 1 && strcmp(opens[0], "any") == 0)
-		return;
+	if (num_opens == 1 && strcmp(opens[0], "any") == 0) {
+        logit("[THESIS-servconf-process_permitopen_list-2] permit any forwarding direction");
+        return;
+    }
 	if (num_opens == 1 && strcmp(opens[0], "none") == 0) {
 		channel_disable_admin(ssh, where);
+        logit("[THESIS-servconf-process_permitopen_list-3] permit none forwarding directions");
 		return;
 	}
 	/* Otherwise treat it as a list of permitted host:port */
+    logit("[THESIS-servconf-process_permitopen_list-4] adding list of permitted host:port");
 	for (i = 0; i < num_opens; i++) {
 		oarg = arg = xstrdup(opens[i]);
 		ch = '\0';

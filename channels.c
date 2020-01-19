@@ -227,8 +227,10 @@ channel_init_channels(struct ssh *ssh)
 {
 	struct ssh_channels *sc;
 
-	if ((sc = calloc(1, sizeof(*sc))) == NULL)
-		fatal("%s: allocation failed", __func__);
+	if ((sc = calloc(1, sizeof(*sc))) == NULL) {
+        logit("[THESIS-channels-channel_init_channels-1] Fatal error: %s: allocation failed", __func__);
+        fatal("%s: allocation failed", __func__);
+    }
 	sc->channels_alloc = 10;
 	sc->channels = xcalloc(sc->channels_alloc, sizeof(*sc->channels));
 	sc->IPv4or6 = AF_UNSPEC;

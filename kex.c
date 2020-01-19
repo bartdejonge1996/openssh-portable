@@ -1163,6 +1163,7 @@ int
 kex_exchange_identification(struct ssh *ssh, int timeout_ms,
     const char *version_addendum)
 {
+    logit("[THESIS-kex-kex_echange_identification-1] Sending identification");
 	int remote_major, remote_minor, mismatch;
 	size_t len, i, n;
 	int r, expect_nl;
@@ -1204,12 +1205,15 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 		goto out;
 	}
 	debug("Local version string %.100s", our_version_string);
+    logit("[THESIS-kex-kex_echange_identification-2] Local version string %.100s", our_version_string);
 
 	/* Read other side's version identification. */
 	for (n = 0; ; n++) {
 		if (n >= SSH_MAX_PRE_BANNER_LINES) {
 			send_error(ssh, "No SSH identification string "
 			    "received.");
+            logit("[THESIS-kex-kex_echange_identification-3] No SSH version received in first %u lines "
+                  "from server", SSH_MAX_PRE_BANNER_LINES);
 			error("%s: No SSH version received in first %u lines "
 			    "from server", __func__, SSH_MAX_PRE_BANNER_LINES);
 			r = SSH_ERR_INVALID_FORMAT;
@@ -1256,6 +1260,7 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 			if (c == '\n')
 				break;
 			if (c == '\0' || expect_nl) {
+                logit("[THESIS-%s-%s-4] banner line contains invalid characters", __FILE__, __func__, our_version_string);
 				error("%s: banner line contains invalid "
 				    "characters", __func__);
 				goto invalid;
@@ -1267,9 +1272,12 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 			}
 			if (sshbuf_len(peer_version) > SSH_MAX_BANNER_LEN) {
 				error("%s: banner line too long", __func__);
+                logit("[THESIS-%s-%s-5] banner line too long", __FILE__, __func__);
 				goto invalid;
 			}
 		}
+
+        logit("[THESIS-%s-%s-6] got raw peer banner line: %s", __FILE__, __func__, peer_version);
 		/* Is this an actual protocol banner? */
 		if (sshbuf_len(peer_version) > 4 &&
 		    memcmp(sshbuf_ptr(peer_version), "SSH-", 4) == 0)
@@ -1282,6 +1290,7 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 		}
 		/* Do not accept lines before the SSH ident from a client */
 		if (ssh->kex->server) {
+            logit("[THESIS-%s-%s-7]client sent invalid protocol identifier \"%.256s\"", __FILE__, __func__, cp);
 			error("%s: client sent invalid protocol identifier "
 			    "\"%.256s\"", __func__, cp);
 			free(cp);
@@ -1291,6 +1300,7 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 		free(cp);
 	}
 	peer_version_string = sshbuf_dup_string(peer_version);
+    logit("[THESIS-%s-%s-8] peer version string: %s", __FILE__, __func__, peer_version_string);
 	if (peer_version_string == NULL)
 		error("%s: sshbuf_dup_string failed", __func__);
 	/* XXX must be same size for sscanf */
@@ -1309,10 +1319,12 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 		error("Bad remote protocol version identification: '%.100s'",
 		    peer_version_string);
  invalid:
+        logit("[THESIS-%s-%s-9] Invalid SSH identification string: %s", __FILE__, __func__, peer_version_string);
 		send_error(ssh, "Invalid SSH identification string.");
 		r = SSH_ERR_INVALID_FORMAT;
 		goto out;
 	}
+    logit("[THESIS-%s-%s-10] Remote protocol version %d.%d, remote software version %.100s", __FILE__, __func__, remote_major, remote_minor, remote_version);
 	debug("Remote protocol version %d.%d, remote software version %.100s",
 	    remote_major, remote_minor, remote_version);
 	// Added by bartdejonge1996
@@ -1338,6 +1350,7 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 		break;
 	}
 	if (mismatch) {
+        logit("[THESIS-%s-%s-11] Protocol major versions differ: %d vs. %d", __FILE__, __func__, PROTOCOL_MAJOR_2, remote_major);
 		error("Protocol major versions differ: %d vs. %d",
 		    PROTOCOL_MAJOR_2, remote_major);
 		send_error(ssh, "Protocol major versions differ.");
@@ -1346,6 +1359,7 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 	}
 
 	if (ssh->kex->server && (ssh->compat & SSH_BUG_PROBE) != 0) {
+        logit("[THESIS-%s-%s-12] Identified as probe by compat", __FILE__, __func__);
 		logit("probed from %s port %d with %s.  Don't panic.",
 		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh),
 		    peer_version_string);
@@ -1353,6 +1367,7 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 		goto out;
 	}
 	if (ssh->kex->server && (ssh->compat & SSH_BUG_SCANNER) != 0) {
+        logit("[THESIS-%s-%s-13] Identified as scan by compat", __FILE__, __func__);
 		logit("scanned from %s port %d with %s.  Don't panic.",
 		    ssh_remote_ipaddr(ssh), ssh_remote_port(ssh),
 		    peer_version_string);
@@ -1360,12 +1375,18 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 		goto out;
 	}
 	if ((ssh->compat & SSH_BUG_RSASIGMD5) != 0) {
+        logit("[THESIS-%s-%s-14] Remote version uses unsafe RSA signature scheme; disabling use of RSA keys", __FILE__, __func__);
 		logit("Remote version \"%.100s\" uses unsafe RSA signature "
 		    "scheme; disabling use of RSA keys", remote_version);
 	}
 	/* success */
 	r = 0;
  out:
+    if(r != 0) {
+        logit("[THESIS-%s-%s-15] kex identification failed: %s", __FILE__, __func__, ssh_err(r));
+    } else {
+        logit("[THESIS-%s-%s-16] kex identification succeeded", __FILE__, __func__);
+    }
 	free(our_version_string);
 	free(peer_version_string);
 	free(remote_version);

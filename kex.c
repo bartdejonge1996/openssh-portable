@@ -825,7 +825,7 @@ choose_mac(struct ssh *ssh, struct sshmac *mac, char *client, char *server)
 	char *name = match_list(client, server, NULL);
 
 	if (name == NULL) {
-        logit("[THESIS-%s-%s-1] error: ", __FILE__, __func__, ssh_err(SSH_ERR_NO_MAC_ALG_MATCH));
+        logit("[THESIS-%s-%s-1] error: %s", __FILE__, __func__, ssh_err(SSH_ERR_NO_MAC_ALG_MATCH));
         return SSH_ERR_NO_MAC_ALG_MATCH;
     }
     logit("[THESIS-%s-%s-2] chosen mac: %s", __FILE__, __func__, name);
@@ -930,7 +930,7 @@ proposals_match(char *my[PROPOSAL_MAX], char *peer[PROPOSAL_MAX])
 		if ((p = strchr(peer[*idx], ',')) != NULL)
 			*p = '\0';
 		if (strcmp(my[*idx], peer[*idx]) != 0) {
-            logit("[THESIS-%s-%s-2] proposal mismatch: my %s peer %s", __FILE__, __func__, my[*idx], peer[*idx}]);
+            logit("[THESIS-%s-%s-2] proposal mismatch: my %s peer %s", __FILE__, __func__, my[*idx], peer[*idx]);
 			debug2("proposal mismatch: my %s peer %s",
 			    my[*idx], peer[*idx]);
 			return (0);
@@ -1371,7 +1371,7 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 			}
 		}
 
-        logit("[THESIS-%s-%s-6] got raw peer banner line: %s", __FILE__, __func__, sshbuf_ptr(peer_version);
+        logit("[THESIS-%s-%s-6] got raw peer banner line: %s", __FILE__, __func__, sshbuf_ptr(peer_version));
 		/* Is this an actual protocol banner? */
 		if (sshbuf_len(peer_version) > 4 &&
 		    memcmp(sshbuf_ptr(peer_version), "SSH-", 4) == 0)

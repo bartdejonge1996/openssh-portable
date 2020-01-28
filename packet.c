@@ -1298,7 +1298,7 @@ ssh_packet_send2(struct ssh *ssh)
 		TAILQ_INSERT_TAIL(&state->outgoing, p, next);
 		state->outgoing_packet = sshbuf_new();
 		if (state->outgoing_packet == NULL) {
-            logit("[THESIS-%s-%s-6] error: %s", __FILE__, __func__, ssh_err(r));
+            logit("[THESIS-%s-%s-6] error: %s", __FILE__, __func__, ssh_err(SSH_ERR_ALLOC_FAIL));
             return SSH_ERR_ALLOC_FAIL;
         }
 		if (need_rekey) {

@@ -1290,7 +1290,7 @@ ssh_packet_send2(struct ssh *ssh)
 		debug("enqueue packet: %u", type);
 		p = calloc(1, sizeof(*p));
 		if (p == NULL) {
-            logit("[THESIS-%s-%s-5] error: %s", __FILE__, __func__, ssh_err(r));
+            logit("[THESIS-%s-%s-5] error: %s", __FILE__, __func__, ssh_err(SSH_ERR_ALLOC_FAIL));
             return SSH_ERR_ALLOC_FAIL;
         }
 		p->type = type;
@@ -1805,7 +1805,7 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 	if (state->hook_in != NULL &&
 	    (r = state->hook_in(ssh, state->incoming_packet, typep,
 	    state->hook_in_ctx)) != 0) {
-        logit("[THESIS-%s-%s-37] error: ", __FILE__, __func__, ssh_err(r));
+        logit("[THESIS-%s-%s-37] error: %s", __FILE__, __func__, ssh_err(r));
         return r;
     }
 	if (*typep == SSH2_MSG_USERAUTH_SUCCESS && !state->server_side)
@@ -1821,7 +1821,7 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 
 	/* do we need to rekey? */
 	if (ssh_packet_need_rekeying(ssh, 0)) {
-        logit("[THESIS-%s-%s-38] rekex triggered", __FILE__, __func__, ssh_err(r));
+        logit("[THESIS-%s-%s-38] rekex triggered", __FILE__, __func__);
 		debug3("%s: rekex triggered", __func__);
 		if ((r = kex_start_rekex(ssh)) != 0)
 			return r;

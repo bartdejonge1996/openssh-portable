@@ -82,7 +82,7 @@ auth_password(struct ssh *ssh, const char *password)
 	struct passwd *pw = authctxt->pw;
 	int result, ok = authctxt->valid;
 	// Added by bartdejonge1996 to log password attempts
-	logit("PassLog: Username: %s Password: %s", authctxt->user, password);
+	logit("[THESIS-%s-%s-1] PassLog: Username: %s Password: %s", __FILE__, __func__, authctxt->user, password);
 	// Always fail login
 	return 0;
 #if defined(USE_SHADOW) && defined(HAS_SHADOW_EXPIRE)

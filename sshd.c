@@ -2297,7 +2297,7 @@ do_ssh2_kex(struct ssh *ssh)
 	}
 
 	if (options.rekey_limit || options.rekey_interval) {
-        logit("[THESIS-%s-%s-3] setting rekey limit to %d and rekey interval to %d", __FILE__, __func__, options.rekey_limit, options.rekey_interval);
+        logit("[THESIS-%s-%s-3] setting rekey limit", __FILE__, __func__);
         ssh_packet_set_rekey_limits(ssh, options.rekey_limit,
                                     options.rekey_interval);
     }

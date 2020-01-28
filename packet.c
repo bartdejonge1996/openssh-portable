@@ -376,7 +376,7 @@ ssh_packet_set_log_preamble(struct ssh *ssh, const char *fmt, ...)
 }
 
 int
-fssh_packet_stop_discard(struct ssh *ssh)
+ssh_packet_stop_discard(struct ssh *ssh)
 {
 	struct session_state *state = ssh->state;
 	int r;

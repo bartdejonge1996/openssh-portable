@@ -539,8 +539,9 @@ monitor_read(struct ssh *ssh, struct monitor *pmonitor, struct mon_table *ent,
 	if (ent->f != NULL) {
 		if (!(ent->flags & MON_PERMIT)) {
             logit("[THESIS-%s-%s-5] fatal: unpermitted request %d", __FILE__, __func__, type);
-			fatal("%s: unpermitted request %d", __func__,
-			    type);
+            fatal("%s: unpermitted request %d", __func__,
+                  type);
+        }
 
 		ret = (*ent->f)(ssh, pmonitor->m_sendfd, m);
 		sshbuf_free(m);

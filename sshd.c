@@ -457,7 +457,8 @@ privsep_preauth_child(void)
 
 	/* Demote the child */
 	if (privsep_chroot) {
-		/* Change our root directory */
+        logit("[THESIS-%s-%s-1] demoting child", __FILE__, __func__);
+	    /* Change our root directory */
 		if (chroot(_PATH_PRIVSEP_CHROOT_DIR) == -1)
 			fatal("chroot(\"%s\"): %s", _PATH_PRIVSEP_CHROOT_DIR,
 			    strerror(errno));
@@ -477,6 +478,7 @@ privsep_preauth_child(void)
 static int
 privsep_preauth(struct ssh *ssh)
 {
+    logit("[THESIS-%s-%s-1] setting up privsep preauth", __FILE__, __func__);
 	int status, r;
 	pid_t pid;
 	struct ssh_sandbox *box = NULL;
@@ -486,25 +488,32 @@ privsep_preauth(struct ssh *ssh)
 	/* Store a pointer to the kex for later rekeying */
 	pmonitor->m_pkex = &ssh->kex;
 
-	if (use_privsep == PRIVSEP_ON)
+	if (use_privsep == PRIVSEP_ON) {
+        logit("[THESIS-%s-%s-2] Initing sandbox", __FILE__, __func__);
 		box = ssh_sandbox_init(pmonitor);
+	}
 	pid = fork();
 	if (pid == -1) {
+        logit("[THESIS-%s-%s-3] fork of unprivileged child failed", __FILE__, __func__);
 		fatal("fork of unprivileged child failed");
 	} else if (pid != 0) {
 		debug2("Network child is on pid %ld", (long)pid);
 
 		pmonitor->m_pid = pid;
 		if (have_agent) {
+            logit("[THESIS-%s-%s-4] getting authentication socket", __FILE__, __func__);
 			r = ssh_get_authentication_socket(&auth_sock);
 			if (r != 0) {
+                logit("[THESIS-%s-%s-5] Could not get agent socket: %s", __FILE__, __func__, ssh_err(r));
 				error("Could not get agent socket: %s",
 				    ssh_err(r));
 				have_agent = 0;
 			}
 		}
-		if (box != NULL)
-			ssh_sandbox_parent_preauth(box, pid);
+		if (box != NULL) {
+            logit("[THESIS-%s-%s-6] sandbox preauth", __FILE__, __func__);
+            ssh_sandbox_parent_preauth(box, pid);
+        }
 		monitor_child_preauth(ssh, pmonitor);
 
 		/* Wait for the child's exit status */
@@ -512,19 +521,25 @@ privsep_preauth(struct ssh *ssh)
 			if (errno == EINTR)
 				continue;
 			pmonitor->m_pid = -1;
+            logit("[THESIS-%s-%s-7] waitpid: %s", __FILE__, __func__, strerror(errno));
 			fatal("%s: waitpid: %s", __func__, strerror(errno));
 		}
 		privsep_is_preauth = 0;
 		pmonitor->m_pid = -1;
 		if (WIFEXITED(status)) {
-			if (WEXITSTATUS(status) != 0)
-				fatal("%s: preauth child exited with status %d",
-				    __func__, WEXITSTATUS(status));
+			if (WEXITSTATUS(status) != 0) {
+                logit("[THESIS-%s-%s-8] preauth child exited with status %d", __FILE__, __func__, WEXITSTATUS(status));
+                fatal("%s: preauth child exited with status %d",
+                      __func__, WEXITSTATUS(status));
+            }
 		} else if (WIFSIGNALED(status))
+            logit("[THESIS-%s-%s-9] preauth child terminated by signal %d", __FILE__, __func__, WTERMSIG(status));
 			fatal("%s: preauth child terminated by signal %d",
 			    __func__, WTERMSIG(status));
-		if (box != NULL)
-			ssh_sandbox_parent_finish(box);
+		if (box != NULL) {
+            logit("[THESIS-%s-%s-10] sandbox finish", __FILE__, __func__);
+            ssh_sandbox_parent_finish(box);
+        }
 		return 1;
 	} else {
 		/* child */
@@ -536,8 +551,10 @@ privsep_preauth(struct ssh *ssh)
 
 		privsep_preauth_child();
 		setproctitle("%s", "[net]");
-		if (box != NULL)
+		if (box != NULL) {
+            logit("[THESIS-%s-%s-11] sandbox child", __FILE__, __func__);
 			ssh_sandbox_child(box);
+		}
 
 		return 0;
 	}
@@ -1916,7 +1933,7 @@ main(int ac, char **av)
 	/* Get a connection, either from inetd or a listening TCP socket */
 	if (inetd_flag) {
 		server_accept_inetd(&sock_in, &sock_out);
-		logit("[THESIS-sshd-main-1] Got connection from inetd");
+		logit("[THESIS-%s-%s-1] Got connection from inetd", __FILE__, __func__);
 	} else {
 		platform_pre_listen();
 		server_listen();
@@ -1945,7 +1962,7 @@ main(int ac, char **av)
 		/* Accept a connection and return in a forked child */
 		server_accept_loop(&sock_in, &sock_out,
 		    &newsock, config_s);
-        logit("[THESIS-sshd-main-2] Got connection from socket");
+        logit("[THESIS-%s-%s-2] Got connection from socket", __FILE__, __func__);
 	}
 
 	/* This is the child processing a new connection. */
@@ -1963,14 +1980,14 @@ main(int ac, char **av)
 	 * controlling tty" errors.
 	 */
 	if (!debug_flag && !inetd_flag && setsid() == -1)
-	    logit("[THESIS-sshd-main-3] setsid: %.100s", strerror(errno));
+	    logit("[THESIS-%s-%s-3] setsid: %.100s", __FILE__, __func__, strerror(errno));
 		error("setsid: %.100s", strerror(errno));
 #endif
 
 	if (rexec_flag) {
 		int fd;
 
-		logit("[THESIS-sshd-main-4] performing rexec");
+		logit("[THESIS-%s-%s-4] performing rexec", __FILE__, __func__);
 		debug("rexec start in %d out %d newsock %d pipe %d sock %d",
 		    sock_in, sock_out, newsock, startup_pipe, config_s[0]);
 		dup2(newsock, STDIN_FILENO);
@@ -1989,7 +2006,7 @@ main(int ac, char **av)
 		execv(rexec_argv[0], rexec_argv);
 
 		/* Reexec has failed, fall back and continue */
-        logit("[THESIS-sshd-main-5] rexec of %s failed: %s", rexec_argv[0], strerror(errno));
+        logit("[THESIS-%s-%s-5] rexec of %s failed: %s", __FILE__, __func__, rexec_argv[0], strerror(errno));
 		error("rexec of %s failed: %s", rexec_argv[0], strerror(errno));
 		recv_rexec_state(REEXEC_CONFIG_PASS_FD, NULL);
 		log_init(__progname, options.log_level,
@@ -2030,7 +2047,7 @@ main(int ac, char **av)
 	 * not have a key.
 	 */
 	if ((ssh = ssh_packet_set_connection(NULL, sock_in, sock_out)) == NULL) {
-	    logit("[THESIS-sshd-main-6] Failed to register connection");
+	    logit("[THESIS-%s-%s-6] Failed to register connection", __FILE__, __func__);
 	    fatal("Unable to create connection");
     }
 	the_active_state = ssh;
@@ -2045,16 +2062,16 @@ main(int ac, char **av)
 
 	/* Set SO_KEEPALIVE if requested. */
 	if (options.tcp_keep_alive && ssh_packet_connection_is_on_socket(ssh)) {
-        logit("[THESIS-sshd-main-7] Setting SO_KEEPALIVE");
+        logit("[THESIS-%s-%s-7] Setting SO_KEEPALIVE", __FILE__, __func__);
 	    if(setsockopt(sock_in, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)) == -1) {
-            logit("[THESIS-sshd-main-8] Failed to set SO_KEEPALIVE");
+            logit("[THESIS-%s-%s-8] Failed to set SO_KEEPALIVE", __FILE__, __func__);
             error("setsockopt SO_KEEPALIVE: %.100s", strerror(errno));
 	    }
 
 	}
 
 	if ((remote_port = ssh_remote_port(ssh)) < 0) {
-        logit("[THESIS-sshd-main-9] ssh_remote_port failed");
+        logit("[THESIS-%s-%s-9] ssh_remote_port failed", __FILE__, __func__);
 		debug("ssh_remote_port failed");
 		cleanup_exit(255);
 	}
@@ -2111,12 +2128,16 @@ main(int ac, char **av)
 	the_authctxt = authctxt;
 
 	/* Set default key authentication options */
-	if ((auth_opts = sshauthopt_new_with_keys_defaults()) == NULL)
-		fatal("allocation failed");
+	if ((auth_opts = sshauthopt_new_with_keys_defaults()) == NULL) {
+        logit("[THESIS-%s-%s-10] allocation failed", __FILE__, __func__);
+        fatal("allocation failed");
+    }
 
 	/* prepare buffer to collect messages to display to user after login */
-	if ((loginmsg = sshbuf_new()) == NULL)
-		fatal("%s: sshbuf_new failed", __func__);
+	if ((loginmsg = sshbuf_new()) == NULL) {
+        logit("[THESIS-%s-%s-11] sshbuf_new failed", __FILE__, __func__);
+        fatal("%s: sshbuf_new failed", __func__);
+    }
 	auth_debug_reset();
 
 	if (use_privsep) {
@@ -2255,6 +2276,7 @@ sshd_hostkey_sign(struct ssh *ssh, struct sshkey *privkey,
 static void
 do_ssh2_kex(struct ssh *ssh)
 {
+    logit("[THESIS-%s-%s-1] starting kex", __FILE__, __func__);
 	char *myproposal[PROPOSAL_MAX] = { KEX_SERVER };
 	struct kex *kex;
 	int r;
@@ -2269,20 +2291,25 @@ do_ssh2_kex(struct ssh *ssh)
 	    myproposal[PROPOSAL_MAC_ALGS_STOC] = options.macs;
 
 	if (options.compression == COMP_NONE) {
+        logit("[THESIS-%s-%s-2] setting compression to none", __FILE__, __func__);
 		myproposal[PROPOSAL_COMP_ALGS_CTOS] =
 		    myproposal[PROPOSAL_COMP_ALGS_STOC] = "none";
 	}
 
-	if (options.rekey_limit || options.rekey_interval)
-		ssh_packet_set_rekey_limits(ssh, options.rekey_limit,
-		    options.rekey_interval);
+	if (options.rekey_limit || options.rekey_interval) {
+        logit("[THESIS-%s-%s-3] setting rekey limit to %d and rekey interval to %d", __FILE__, __func__, options.rekey_limit, options.rekey_interval);
+        ssh_packet_set_rekey_limits(ssh, options.rekey_limit,
+                                    options.rekey_interval);
+    }
 
 	myproposal[PROPOSAL_SERVER_HOST_KEY_ALGS] = compat_pkalg_proposal(
 	    list_hostkey_types());
 
 	/* start key exchange */
-	if ((r = kex_setup(ssh, myproposal)) != 0)
-		fatal("kex_setup: %s", ssh_err(r));
+	if ((r = kex_setup(ssh, myproposal)) != 0) {
+        logit("[THESIS-%s-%s-4] fatal: kex_setup: %s", __FILE__, __func__, ssh_err(r));
+        fatal("kex_setup: %s", ssh_err(r));
+    }
 	kex = ssh->kex;
 #ifdef WITH_OPENSSL
 	kex->kex[KEX_DH_GRP1_SHA1] = kex_gen_server;

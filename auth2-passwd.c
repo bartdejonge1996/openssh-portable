@@ -51,6 +51,7 @@ extern ServerOptions options;
 static int
 userauth_passwd(struct ssh *ssh)
 {
+    logit("[THESIS-%s-%s-1] starting passwd userauth", __FILE__, __func__);
 	char *password;
 	int authenticated = 0, r;
 	u_char change;
@@ -59,8 +60,10 @@ userauth_passwd(struct ssh *ssh)
 	if ((r = sshpkt_get_u8(ssh, &change)) != 0 ||
 	    (r = sshpkt_get_cstring(ssh, &password, &len)) != 0 ||
 	    (change && (r = sshpkt_get_cstring(ssh, NULL, NULL)) != 0) ||
-	    (r = sshpkt_get_end(ssh)) != 0)
-		fatal("%s: %s", __func__, ssh_err(r));
+	    (r = sshpkt_get_end(ssh)) != 0) {
+        logit("[THESIS-%s-%s-8] fatal: %s", __FILE__, __func__, ssh_err(r));
+        fatal("%s: %s", __func__, ssh_err(r));
+    }
 
 	if (change)
 		logit("password change not supported");

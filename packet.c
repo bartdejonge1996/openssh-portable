@@ -223,7 +223,7 @@ struct session_state {
 struct ssh *
 ssh_alloc_session_state(void)
 {
-    logit("[THESIS-packet-ssh_alloc_session_state-1] Allocating session state'");
+    logit("[THESIS-%s-%s-1] Allocating session state", __FILE__, __func__);
 	struct ssh *ssh = NULL;
 	struct session_state *state = NULL;
 
@@ -234,7 +234,7 @@ ssh_alloc_session_state(void)
 	    (state->output = sshbuf_new()) == NULL ||
 	    (state->outgoing_packet = sshbuf_new()) == NULL ||
 	    (state->incoming_packet = sshbuf_new()) == NULL) {
-        logit("[THESIS-packet-ssh_alloc_session_state-2] Allocating session state failed'");
+        logit("[THESIS-%s-%s-2] Allocating session state failed", __FILE__, __func__);
         goto fail;
     }
 	TAILQ_INIT(&state->outgoing);
@@ -255,12 +255,12 @@ ssh_alloc_session_state(void)
 	return ssh;
  fail:
 	if (ssh) {
-        logit("[THESIS-packet-ssh_alloc_session_state-3] Freeing ssh'");
+        logit("[THESIS-%s-%s-3] Freeing ssh", __FILE__, __func__);
 		kex_free(ssh->kex);
 		free(ssh);
 	}
 	if (state) {
-        logit("[THESIS-packet-ssh_alloc_session_state-1] Freeing state'");
+        logit("[THESIS-%s-%s-1] Freeing state", __FILE__, __func__);
 		sshbuf_free(state->input);
 		sshbuf_free(state->output);
 		sshbuf_free(state->incoming_packet);
@@ -290,20 +290,20 @@ ssh_packet_is_rekeying(struct ssh *ssh)
 struct ssh *
 ssh_packet_set_connection(struct ssh *ssh, int fd_in, int fd_out)
 {
-    logit("[THESIS-packet-ssh_packet_set_connection-1] Setting connection");
+    logit("[THESIS-%s-%s-1] Setting connection", __FILE__, __func__);
 	struct session_state *state;
 	const struct sshcipher *none = cipher_by_name("none");
 	int r;
 
 	if (none == NULL) {
-        logit("[THESIS-packet-ssh_packet_set_connection-2] Cannot load cipher 'none'");
+        logit("[THESIS-%s-%s-2] Cannot load cipher 'none'", __FILE__, __func__);
 		error("%s: cannot load cipher 'none'", __func__);
 		return NULL;
 	}
 	if (ssh == NULL)
 		ssh = ssh_alloc_session_state();
 	if (ssh == NULL) {
-        logit("[THESIS-packet-ssh_packet_set_connection-3] Could not allocate state");
+        logit("[THESIS-%s-%s-3] Could not allocate state", __FILE__, __func__);
 		error("%s: could not allocate state", __func__);
 		return NULL;
 	}
@@ -314,7 +314,7 @@ ssh_packet_set_connection(struct ssh *ssh, int fd_in, int fd_out)
 	    (const u_char *)"", 0, NULL, 0, CIPHER_ENCRYPT)) != 0 ||
 	    (r = cipher_init(&state->receive_context, none,
 	    (const u_char *)"", 0, NULL, 0, CIPHER_DECRYPT)) != 0) {
-        logit("[THESIS-packet-ssh_packet_set_connection-4] cipher_init failed: %s", ssh_err(r));
+        logit("[THESIS-%s-%s-4] cipher_init failed: %s", __FILE__, __func__, ssh_err(r));
 		error("%s: cipher_init failed: %s", __func__, ssh_err(r));
 		free(ssh); /* XXX need ssh_free_session_state? */
 		return NULL;
@@ -376,7 +376,7 @@ ssh_packet_set_log_preamble(struct ssh *ssh, const char *fmt, ...)
 }
 
 int
-ssh_packet_stop_discard(struct ssh *ssh)
+fssh_packet_stop_discard(struct ssh *ssh)
 {
 	struct session_state *state = ssh->state;
 	int r;
@@ -530,20 +530,20 @@ ssh_remote_ipaddr(struct ssh *ssh)
 
 	/* Check whether we have cached the ipaddr. */
 	if (ssh->remote_ipaddr == NULL) {
-        logit("[THESIS-packet-ssh_remote_ipaddr-1] Caching remote IP address");
+        logit("[THESIS-%s-%s-1] Caching remote IP address", __FILE__, __func__);
 		if (ssh_packet_connection_is_on_socket(ssh)) {
 			sock = ssh->state->connection_in;
 			ssh->remote_ipaddr = get_peer_ipaddr(sock);
 			ssh->remote_port = get_peer_port(sock);
 			ssh->local_ipaddr = get_local_ipaddr(sock);
 			ssh->local_port = get_local_port(sock);
-            logit("[THESIS-packet-ssh_remote_ipaddr-1] Successfully cached remote ip address: remote=%s:%d, local=%s:%d",
+            logit("[THESIS-%s-%s-2] Successfully cached remote ip address: remote=%s:%d, local=%s:%d", __FILE__, __func__,
                     ssh->remote_ipaddr,
                     ssh->remote_port,
                     ssh->local_ipaddr,
                     ssh->local_port);
 		} else {
-            logit("[THESIS-packet-ssh_remote_ipaddr-2] Could not cache remote IP address");
+            logit("[THESIS-%s-%s-3] Could not cache remote IP address", __FILE__, __func__);
 			ssh->remote_ipaddr = strdup("UNKNOWN");
 			ssh->remote_port = 65535;
 			ssh->local_ipaddr = strdup("UNKNOWN");
@@ -1047,6 +1047,7 @@ ssh_packet_log_type(u_char type)
 int
 ssh_packet_send2_wrapped(struct ssh *ssh)
 {
+    logit("[THESIS-%s-%s-1] entering send2 wrapped", __FILE__, __func__);
 	struct session_state *state = ssh->state;
 	u_char type, *cp, macbuf[SSH_DIGEST_MAX_LENGTH];
 	u_char tmp, padlen, pad = 0;
@@ -1069,6 +1070,7 @@ ssh_packet_send2_wrapped(struct ssh *ssh)
 	aadlen = (mac && mac->enabled && mac->etm) || authlen ? 4 : 0;
 
 	type = (sshbuf_ptr(state->outgoing_packet))[5];
+    logit("[THESIS-%s-%s-2] send packet: type %u", __FILE__, __func__, type);
 	if (ssh_packet_log_type(type))
 		debug3("send packet: type %u", type);
 #ifdef PACKET_DEBUG
@@ -1077,20 +1079,27 @@ ssh_packet_send2_wrapped(struct ssh *ssh)
 #endif
 
 	if (comp && comp->enabled) {
+        logit("[THESIS-%s-%s-3] starting compression", __FILE__, __func__);
 		len = sshbuf_len(state->outgoing_packet);
 		/* skip header, compress only payload */
-		if ((r = sshbuf_consume(state->outgoing_packet, 5)) != 0)
-			goto out;
+		if ((r = sshbuf_consume(state->outgoing_packet, 5)) != 0) {
+            logit("[THESIS-%s-%s-4] error consuming buffer: %s", __FILE__, __func__, ssh_err(r));
+            goto out;
+        }
 		sshbuf_reset(state->compression_buffer);
 		if ((r = compress_buffer(ssh, state->outgoing_packet,
-		    state->compression_buffer)) != 0)
-			goto out;
+		    state->compression_buffer)) != 0) {
+            logit("[THESIS-%s-%s-5] error compressing buffer: %s", __FILE__, __func__, ssh_err(r));
+            goto out;
+        }
 		sshbuf_reset(state->outgoing_packet);
 		if ((r = sshbuf_put(state->outgoing_packet,
 		    "\0\0\0\0\0", 5)) != 0 ||
 		    (r = sshbuf_putb(state->outgoing_packet,
-		    state->compression_buffer)) != 0)
-			goto out;
+		    state->compression_buffer)) != 0) {
+            logit("[THESIS-%s-%s-6] error replacing packet with compressed version: %s", __FILE__, __func__, ssh_err(r));
+            goto out;
+        }
 		DBG(debug("compression: raw %d compressed %zd", len,
 		    sshbuf_len(state->outgoing_packet)));
 	}
@@ -1107,32 +1116,43 @@ ssh_packet_send2_wrapped(struct ssh *ssh)
 	if (padlen < 4)
 		padlen += block_size;
 	if (state->extra_pad) {
+        logit("[THESIS-%s-%s-7] using extra pad", __FILE__, __func__);
 		tmp = state->extra_pad;
 		state->extra_pad =
 		    ROUNDUP(state->extra_pad, block_size);
 		/* check if roundup overflowed */
-		if (state->extra_pad < tmp)
-			return SSH_ERR_INVALID_ARGUMENT;
+		if (state->extra_pad < tmp) {
+            logit("[THESIS-%s-%s-8] error: %s", __FILE__, __func__, ssh_err(SSH_ERR_INVALID_ARGUMENT));
+            return SSH_ERR_INVALID_ARGUMENT;
+        }
 		tmp = (len + padlen) % state->extra_pad;
 		/* Check whether pad calculation below will underflow */
-		if (tmp > state->extra_pad)
-			return SSH_ERR_INVALID_ARGUMENT;
+		if (tmp > state->extra_pad) {
+            logit("[THESIS-%s-%s-9] error: %s", __FILE__, __func__, ssh_err(SSH_ERR_INVALID_ARGUMENT));
+            return SSH_ERR_INVALID_ARGUMENT;
+        }
 		pad = state->extra_pad - tmp;
 		DBG(debug3("%s: adding %d (len %d padlen %d extra_pad %d)",
 		    __func__, pad, len, padlen, state->extra_pad));
 		tmp = padlen;
 		padlen += pad;
 		/* Check whether padlen calculation overflowed */
-		if (padlen < tmp)
-			return SSH_ERR_INVALID_ARGUMENT; /* overflow */
+		if (padlen < tmp) {
+            logit("[THESIS-%s-%s-10] error: %s", __FILE__, __func__, ssh_err(SSH_ERR_INVALID_ARGUMENT));
+            return SSH_ERR_INVALID_ARGUMENT; /* overflow */
+        }
 		state->extra_pad = 0;
 	}
-	if ((r = sshbuf_reserve(state->outgoing_packet, padlen, &cp)) != 0)
-		goto out;
+	if ((r = sshbuf_reserve(state->outgoing_packet, padlen, &cp)) != 0) {
+        logit("[THESIS-%s-%s-11] error reserving buffer space: %s", __FILE__, __func__, ssh_err(r));
+        goto out;
+    }
 	if (enc && !cipher_ctx_is_plaintext(state->send_context)) {
+        logit("[THESIS-%s-%s-12] adding random padding", __FILE__, __func__);
 		/* random padding */
 		arc4random_buf(cp, padlen);
 	} else {
+        logit("[THESIS-%s-%s-13] adding clear padding", __FILE__, __func__);
 		/* clear padding */
 		explicit_bzero(cp, padlen);
 	}
@@ -1140,6 +1160,7 @@ ssh_packet_send2_wrapped(struct ssh *ssh)
 	len = sshbuf_len(state->outgoing_packet);
 	cp = sshbuf_mutable_ptr(state->outgoing_packet);
 	if (cp == NULL) {
+        logit("[THESIS-%s-%s-14] error: %s", __FILE__, __func__, ssh_err(SSH_ERR_INTERNAL_ERROR));
 		r = SSH_ERR_INTERNAL_ERROR;
 		goto out;
 	}
@@ -1151,53 +1172,78 @@ ssh_packet_send2_wrapped(struct ssh *ssh)
 
 	/* compute MAC over seqnr and packet(length fields, payload, padding) */
 	if (mac && mac->enabled && !mac->etm) {
+        logit("[THESIS-%s-%s-15] computing mac over seqnr and packets", __FILE__, __func__);
 		if ((r = mac_compute(mac, state->p_send.seqnr,
 		    sshbuf_ptr(state->outgoing_packet), len,
-		    macbuf, sizeof(macbuf))) != 0)
-			goto out;
+		    macbuf, sizeof(macbuf))) != 0) {
+            logit("[THESIS-%s-%s-16] error computing mac: %s", __FILE__, __func__, ssh_err(r));
+            goto out;
+        }
 		DBG(debug("done calc MAC out #%d", state->p_send.seqnr));
 	}
 	/* encrypt packet and append to output buffer. */
 	if ((r = sshbuf_reserve(state->output,
-	    sshbuf_len(state->outgoing_packet) + authlen, &cp)) != 0)
-		goto out;
+	    sshbuf_len(state->outgoing_packet) + authlen, &cp)) != 0) {
+        logit("[THESIS-%s-%s-17] error reserving buffer space: %s", __FILE__, __func__, ssh_err(r));
+        goto out;
+    }
 	if ((r = cipher_crypt(state->send_context, state->p_send.seqnr, cp,
 	    sshbuf_ptr(state->outgoing_packet),
-	    len - aadlen, aadlen, authlen)) != 0)
-		goto out;
+	    len - aadlen, aadlen, authlen)) != 0) {
+        logit("[THESIS-%s-%s-18] error in cipher_crypt: %s", __FILE__, __func__, ssh_err(r));
+        goto out;
+    }
 	/* append unencrypted MAC */
 	if (mac && mac->enabled) {
 		if (mac->etm) {
+            logit("[THESIS-%s-%s-19] computing mac over aadlen and cipher text", __FILE__, __func__);
 			/* EtM: compute mac over aadlen + cipher text */
 			if ((r = mac_compute(mac, state->p_send.seqnr,
-			    cp, len, macbuf, sizeof(macbuf))) != 0)
-				goto out;
+			    cp, len, macbuf, sizeof(macbuf))) != 0) {
+                logit("[THESIS-%s-%s-20] error computing mac: %s", __FILE__, __func__, ssh_err(r));
+                goto out;
+            }
 			DBG(debug("done calc MAC(EtM) out #%d",
 			    state->p_send.seqnr));
 		}
-		if ((r = sshbuf_put(state->output, macbuf, mac->mac_len)) != 0)
-			goto out;
+		if ((r = sshbuf_put(state->output, macbuf, mac->mac_len)) != 0) {
+            logit("[THESIS-%s-%s-21] error: %s", __FILE__, __func__, ssh_err(r));
+            goto out;
+        }
 	}
 #ifdef PACKET_DEBUG
 	fprintf(stderr, "encrypted: ");
 	sshbuf_dump(state->output, stderr);
 #endif
 	/* increment sequence number for outgoing packets */
-	if (++state->p_send.seqnr == 0)
-		logit("outgoing seqnr wraps around");
+	if (++state->p_send.seqnr == 0) {
+        logit("[THESIS-%s-%s-22] outgoing seqnr wraps around", __FILE__, __func__);
+        logit("outgoing seqnr wraps around");
+    }
 	if (++state->p_send.packets == 0)
-		if (!(ssh->compat & SSH_BUG_NOREKEY))
-			return SSH_ERR_NEED_REKEY;
+		if (!(ssh->compat & SSH_BUG_NOREKEY)) {
+            logit("[THESIS-%s-%s-23] error: %s", __FILE__, __func__, ssh_err(SSH_ERR_NEED_REKEY));
+            return SSH_ERR_NEED_REKEY;
+        }
 	state->p_send.blocks += len / block_size;
 	state->p_send.bytes += len;
 	sshbuf_reset(state->outgoing_packet);
 
-	if (type == SSH2_MSG_NEWKEYS)
-		r = ssh_set_newkeys(ssh, MODE_OUT);
-	else if (type == SSH2_MSG_USERAUTH_SUCCESS && state->server_side)
-		r = ssh_packet_enable_delayed_compress(ssh);
-	else
-		r = 0;
+	if (type == SSH2_MSG_NEWKEYS) {
+        logit("[THESIS-%s-%s-24] setting new keys", __FILE__, __func__);
+        r = ssh_set_newkeys(ssh, MODE_OUT);
+        if(r != 0) {
+            logit("[THESIS-%s-%s-25] error setting new keys: %s", __FILE__, __func__, ssh_err(r));
+        }
+    } else if (type == SSH2_MSG_USERAUTH_SUCCESS && state->server_side) {
+        logit("[THESIS-%s-%s-26] enabling delayed compress", __FILE__, __func__);
+        r = ssh_packet_enable_delayed_compress(ssh);
+        if(r != 0) {
+            logit("[THESIS-%s-%s-27] error enabling delayed compress: %s", __FILE__, __func__, ssh_err(r));
+        }
+    } else {
+        r = 0;
+    }
  out:
 	return r;
 }
@@ -1217,13 +1263,16 @@ ssh_packet_type_is_kex(u_char type)
 int
 ssh_packet_send2(struct ssh *ssh)
 {
+    logit("[THESIS-%s-%s-1] entering send2", __FILE__, __func__);
 	struct session_state *state = ssh->state;
 	struct packet *p;
 	u_char type;
 	int r, need_rekey;
 
-	if (sshbuf_len(state->outgoing_packet) < 6)
-		return SSH_ERR_INTERNAL_ERROR;
+	if (sshbuf_len(state->outgoing_packet) < 6) {
+        logit("[THESIS-%s-%s-2] outgoing packet length to small", __FILE__, __func__);
+        return SSH_ERR_INTERNAL_ERROR;
+    }
 	type = sshbuf_ptr(state->outgoing_packet)[5];
 	need_rekey = !ssh_packet_type_is_kex(type) &&
 	    ssh_packet_need_rekeying(ssh, sshbuf_len(state->outgoing_packet));
@@ -1233,19 +1282,27 @@ ssh_packet_send2(struct ssh *ssh)
 	 * Queue everything else.
 	 */
 	if ((need_rekey || state->rekeying) && !ssh_packet_type_is_kex(type)) {
-		if (need_rekey)
-			debug3("%s: rekex triggered", __func__);
+		if (need_rekey) {
+            logit("[THESIS-%s-%s-3] rekex triggered", __FILE__, __func__);
+            debug3("%s: rekex triggered", __func__);
+        }
+        logit("[THESIS-%s-%s-4] enqueue packet: %u", __FILE__, __func__, type);
 		debug("enqueue packet: %u", type);
 		p = calloc(1, sizeof(*p));
-		if (p == NULL)
-			return SSH_ERR_ALLOC_FAIL;
+		if (p == NULL) {
+            logit("[THESIS-%s-%s-5] error: %s", __FILE__, __func__, ssh_err(r));
+            return SSH_ERR_ALLOC_FAIL;
+        }
 		p->type = type;
 		p->payload = state->outgoing_packet;
 		TAILQ_INSERT_TAIL(&state->outgoing, p, next);
 		state->outgoing_packet = sshbuf_new();
-		if (state->outgoing_packet == NULL)
-			return SSH_ERR_ALLOC_FAIL;
+		if (state->outgoing_packet == NULL) {
+            logit("[THESIS-%s-%s-6] error: %s", __FILE__, __func__, ssh_err(r));
+            return SSH_ERR_ALLOC_FAIL;
+        }
 		if (need_rekey) {
+            logit("[THESIS-%s-%s-7] starting rekex", __FILE__, __func__);
 			/*
 			 * This packet triggered a rekey, so send the
 			 * KEXINIT now.
@@ -1257,14 +1314,19 @@ ssh_packet_send2(struct ssh *ssh)
 	}
 
 	/* rekeying starts with sending KEXINIT */
-	if (type == SSH2_MSG_KEXINIT)
-		state->rekeying = 1;
+	if (type == SSH2_MSG_KEXINIT) {
+        logit("[THESIS-%s-%s-8] received SSH2_MSG_KEXINIT, we are now rekeying", __FILE__, __func__);
+        state->rekeying = 1;
+    }
 
-	if ((r = ssh_packet_send2_wrapped(ssh)) != 0)
-		return r;
+	if ((r = ssh_packet_send2_wrapped(ssh)) != 0) {
+        logit("[THESIS-%s-%s-9] error in send2 wrapped: %s", __FILE__, __func__, ssh_err(r));
+        return r;
+    }
 
 	/* after a NEWKEYS message we can send the complete queue */
 	if (type == SSH2_MSG_NEWKEYS) {
+        logit("[THESIS-%s-%s-10] received SSH2_MSG_NEWKEYS", __FILE__, __func__);
 		state->rekeying = 0;
 		state->rekey_time = monotime();
 		while ((p = TAILQ_FIRST(&state->outgoing))) {
@@ -1276,18 +1338,22 @@ ssh_packet_send2(struct ssh *ssh)
 			 */
 			if (ssh_packet_need_rekeying(ssh,
 			    sshbuf_len(p->payload))) {
+                logit("[THESIS-%s-%s-11] queued packet triggered rekex", __FILE__, __func__);
 				debug3("%s: queued packet triggered rekex",
 				    __func__);
 				return kex_start_rekex(ssh);
 			}
+            logit("[THESIS-%s-%s-12] dequeue packet: %u", __FILE__, __func__, type);
 			debug("dequeue packet: %u", type);
 			sshbuf_free(state->outgoing_packet);
 			state->outgoing_packet = p->payload;
 			TAILQ_REMOVE(&state->outgoing, p, next);
 			memset(p, 0, sizeof(*p));
 			free(p);
-			if ((r = ssh_packet_send2_wrapped(ssh)) != 0)
-				return r;
+			if ((r = ssh_packet_send2_wrapped(ssh)) != 0) {
+                logit("[THESIS-%s-%s-13] error in send2 wrapped: %s", __FILE__, __func__, ssh_err(r));
+                return r;
+            }
 		}
 	}
 	return 0;
@@ -1302,6 +1368,7 @@ ssh_packet_send2(struct ssh *ssh)
 int
 ssh_packet_read_seqnr(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 {
+    logit("[THESIS-%s-%s-1] entering read seqnr", __FILE__, __func__);
 	struct session_state *state = ssh->state;
 	int len, r, ms_remain;
 	fd_set *setp;
@@ -1312,15 +1379,19 @@ ssh_packet_read_seqnr(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 
 	setp = calloc(howmany(state->connection_in + 1,
 	    NFDBITS), sizeof(fd_mask));
-	if (setp == NULL)
-		return SSH_ERR_ALLOC_FAIL;
+	if (setp == NULL) {
+        logit("[THESIS-%s-%s-2] error: %s", __FILE__, __func__, ssh_err(SSH_ERR_ALLOC_FAIL));
+        return SSH_ERR_ALLOC_FAIL;
+    }
 
 	/*
 	 * Since we are blocking, ensure that all written packets have
 	 * been sent.
 	 */
-	if ((r = ssh_packet_write_wait(ssh)) != 0)
-		goto out;
+	if ((r = ssh_packet_write_wait(ssh)) != 0) {
+        logit("[THESIS-%s-%s-3] error flushing written packets: %s", __FILE__, __func__, ssh_err(r));
+        goto out;
+    }
 
 	/* Stay in the loop until we have received a complete packet. */
 	for (;;) {
@@ -1366,23 +1437,28 @@ ssh_packet_read_seqnr(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 			}
 		}
 		if (r == 0) {
+            logit("[THESIS-%s-%s-4] connection timed out", __FILE__, __func__);
 			r = SSH_ERR_CONN_TIMEOUT;
 			goto out;
 		}
 		/* Read data from the socket. */
 		len = read(state->connection_in, buf, sizeof(buf));
 		if (len == 0) {
+            logit("[THESIS-%s-%s-5] connection closed", __FILE__, __func__);
 			r = SSH_ERR_CONN_CLOSED;
 			goto out;
 		}
 		if (len == -1) {
+            logit("[THESIS-%s-%s-6] error reading data from connection", __FILE__, __func__);
 			r = SSH_ERR_SYSTEM_ERROR;
 			goto out;
 		}
 
 		/* Append it to the buffer. */
-		if ((r = ssh_packet_process_incoming(ssh, buf, len)) != 0)
-			goto out;
+		if ((r = ssh_packet_process_incoming(ssh, buf, len)) != 0) {
+            logit("[THESIS-%s-%s-9] error adding data to buffer: %s", __FILE__, __func__, ssh_err(r));
+            goto out;
+        }
 	}
  out:
 	free(setp);
@@ -1464,6 +1540,7 @@ ssh_packet_read_poll2_mux(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 int
 ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 {
+    logit("[THESIS-%s-%s-1] entering read poll2", __FILE__, __func__);
 	struct session_state *state = ssh->state;
 	u_int padlen, need;
 	u_char *cp;
@@ -1473,13 +1550,17 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 	struct sshcomp *comp = NULL;
 	int r;
 
-	if (state->mux)
-		return ssh_packet_read_poll2_mux(ssh, typep, seqnr_p);
+	if (state->mux) {
+        logit("[THESIS-%s-%s-2] handling with mux", __FILE__, __func__);
+        return ssh_packet_read_poll2_mux(ssh, typep, seqnr_p);
+    }
 
 	*typep = SSH_MSG_NONE;
 
-	if (state->packet_discard)
-		return 0;
+	if (state->packet_discard) {
+        logit("[THESIS-%s-%s-3] discarding packet", __FILE__, __func__);
+        return 0;
+    }
 
 	if (state->newkeys[MODE_IN] != NULL) {
 		enc  = &state->newkeys[MODE_IN]->enc;
@@ -1494,36 +1575,49 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 	aadlen = (mac && mac->enabled && mac->etm) || authlen ? 4 : 0;
 
 	if (aadlen && state->packlen == 0) {
+        logit("[THESIS-%s-%s-4] handling with non-zero aadlen", __FILE__, __func__);
 		if (cipher_get_length(state->receive_context,
 		    &state->packlen, state->p_read.seqnr,
-		    sshbuf_ptr(state->input), sshbuf_len(state->input)) != 0)
-			return 0;
+		    sshbuf_ptr(state->input), sshbuf_len(state->input)) != 0) {
+            logit("[THESIS-%s-%s-5] failed to get packet length", __FILE__, __func__);
+            return 0;
+        }
 		if (state->packlen < 1 + 4 ||
 		    state->packlen > PACKET_MAX_SIZE) {
 #ifdef PACKET_DEBUG
 			sshbuf_dump(state->input, stderr);
 #endif
+            logit("[THESIS-%s-%s-6] bad packet length %u.", __FILE__, __func__, state->packlen);
 			logit("Bad packet length %u.", state->packlen);
-			if ((r = sshpkt_disconnect(ssh, "Packet corrupt")) != 0)
-				return r;
+			if ((r = sshpkt_disconnect(ssh, "Packet corrupt")) != 0) {
+                logit("[THESIS-%s-%s-7] failed to send disconnect: %s", __FILE__, __func__, ssh_err(r));
+                return r;
+            }
 			return SSH_ERR_CONN_CORRUPT;
 		}
 		sshbuf_reset(state->incoming_packet);
 	} else if (state->packlen == 0) {
+        logit("[THESIS-%s-%s-8] handling with zero aadlen", __FILE__, __func__);
 		/*
 		 * check if input size is less than the cipher block size,
 		 * decrypt first block and extract length of incoming packet
 		 */
-		if (sshbuf_len(state->input) < block_size)
-			return 0;
+		if (sshbuf_len(state->input) < block_size) {
+            logit("[THESIS-%s-%s-9] input size is less than ciphe block size", __FILE__, __func__);
+            return 0;
+        }
 		sshbuf_reset(state->incoming_packet);
 		if ((r = sshbuf_reserve(state->incoming_packet, block_size,
-		    &cp)) != 0)
-			goto out;
+		    &cp)) != 0) {
+            logit("[THESIS-%s-%s-10] railed to reserve buffer space: %s", __FILE__, __func__, ssh_err(r));
+            goto out;
+        }
 		if ((r = cipher_crypt(state->receive_context,
 		    state->p_send.seqnr, cp, sshbuf_ptr(state->input),
-		    block_size, 0, 0)) != 0)
-			goto out;
+		    block_size, 0, 0)) != 0) {
+            logit("[THESIS-%s-%s-11] error in cipher_crypt: %s", __FILE__, __func__, ssh_err(r));
+            goto out;
+        }
 		state->packlen = PEEK_U32(sshbuf_ptr(state->incoming_packet));
 		if (state->packlen < 1 + 4 ||
 		    state->packlen > PACKET_MAX_SIZE) {
@@ -1533,13 +1627,17 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 			fprintf(stderr, "incoming_packet: \n");
 			sshbuf_dump(state->incoming_packet, stderr);
 #endif
+            logit("[THESIS-%s-%s-12] bad packet length %u.", __FILE__, __func__, state->packlen);
 			logit("Bad packet length %u.", state->packlen);
 			return ssh_packet_start_discard(ssh, enc, mac, 0,
 			    PACKET_MAX_SIZE);
 		}
-		if ((r = sshbuf_consume(state->input, block_size)) != 0)
-			goto out;
+		if ((r = sshbuf_consume(state->input, block_size)) != 0) {
+            logit("[THESIS-%s-%s-13] error while consuming buffer: %s", __FILE__, __func__, ssh_err(r));
+            goto out;
+        }
 	}
+    logit("[THESIS-%s-%s-14] input packet len %u", __FILE__, __func__, state->packlen+4);
 	DBG(debug("input: packet len %u", state->packlen+4));
 
 	if (aadlen) {
@@ -1552,9 +1650,11 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 		 */
 		need = 4 + state->packlen - block_size;
 	}
+    logit("[THESIS-%s-%s-15] partial packet: block %d, need %d, maclen %d, authlen %d, aadlen %d", __FILE__, __func__, block_size, need, maclen, authlen, aadlen);
 	DBG(debug("partial packet: block %d, need %d, maclen %d, authlen %d,"
 	    " aadlen %d", block_size, need, maclen, authlen, aadlen));
 	if (need % block_size != 0) {
+        logit("[THESIS-%s-%s-16] padding error: need %d block %d mod %d", __FILE__, __func__, need, block_size, need % block_size);
 		logit("padding error: need %d block %d mod %d",
 		    need, block_size, need % block_size);
 		return ssh_packet_start_discard(ssh, enc, mac, 0,
@@ -1568,65 +1668,88 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 	 * 'authlen' bytes of authentication tag or
 	 * 'maclen' bytes of message authentication code.
 	 */
-	if (sshbuf_len(state->input) < aadlen + need + authlen + maclen)
-		return 0; /* packet is incomplete */
+	if (sshbuf_len(state->input) < aadlen + need + authlen + maclen) {
+        logit("[THESIS-%s-%s-17] packet is incomplete", __FILE__, __func__);
+        return 0; /* packet is incomplete */
+    }
 #ifdef PACKET_DEBUG
 	fprintf(stderr, "read_poll enc/full: ");
 	sshbuf_dump(state->input, stderr);
 #endif
 	/* EtM: check mac over encrypted input */
 	if (mac && mac->enabled && mac->etm) {
+        logit("[THESIS-%s-%s-18] checking mac on encrypted input", __FILE__, __func__);
 		if ((r = mac_check(mac, state->p_read.seqnr,
 		    sshbuf_ptr(state->input), aadlen + need,
 		    sshbuf_ptr(state->input) + aadlen + need + authlen,
 		    maclen)) != 0) {
+            logit("[THESIS-%s-%s-19] error checking mac: %s", __FILE__, __func__, ssh_err(r));
 			if (r == SSH_ERR_MAC_INVALID)
 				logit("Corrupted MAC on input.");
 			goto out;
 		}
 	}
 	if ((r = sshbuf_reserve(state->incoming_packet, aadlen + need,
-	    &cp)) != 0)
-		goto out;
+	    &cp)) != 0) {
+        logit("[THESIS-%s-%s-20] error reserving buffer space: %s", __FILE__, __func__, ssh_err(r));
+        goto out;
+    }
 	if ((r = cipher_crypt(state->receive_context, state->p_read.seqnr, cp,
-	    sshbuf_ptr(state->input), need, aadlen, authlen)) != 0)
-		goto out;
-	if ((r = sshbuf_consume(state->input, aadlen + need + authlen)) != 0)
-		goto out;
+	    sshbuf_ptr(state->input), need, aadlen, authlen)) != 0) {
+        logit("[THESIS-%s-%s-21] error decrypting packet: %s", __FILE__, __func__, ssh_err(r));
+        goto out;
+    }
+	if ((r = sshbuf_consume(state->input, aadlen + need + authlen)) != 0) {
+        logit("[THESIS-%s-%s-22] error consuming buffer: %s", __FILE__, __func__, ssh_err(r));
+        goto out;
+    }
 	if (mac && mac->enabled) {
 		/* Not EtM: check MAC over cleartext */
-		if (!mac->etm && (r = mac_check(mac, state->p_read.seqnr,
+		if (!mac->etm) {
+            logit("[THESIS-%s-%s-23] checking mac over cleartext", __FILE__, __func__);
+		    if((r = mac_check(mac, state->p_read.seqnr,
 		    sshbuf_ptr(state->incoming_packet),
 		    sshbuf_len(state->incoming_packet),
 		    sshbuf_ptr(state->input), maclen)) != 0) {
-			if (r != SSH_ERR_MAC_INVALID)
-				goto out;
-			logit("Corrupted MAC on input.");
-			if (need + block_size > PACKET_MAX_SIZE)
-				return SSH_ERR_INTERNAL_ERROR;
-			return ssh_packet_start_discard(ssh, enc, mac,
-			    sshbuf_len(state->incoming_packet),
-			    PACKET_MAX_SIZE - need - block_size);
+                logit("[THESIS-%s-%s-24] error checking mac: %s", __FILE__, __func__, ssh_err(r));
+                if (r != SSH_ERR_MAC_INVALID)
+                    goto out;
+                logit("Corrupted MAC on input.");
+                if (need + block_size > PACKET_MAX_SIZE)
+                    return SSH_ERR_INTERNAL_ERROR;
+                return ssh_packet_start_discard(ssh, enc, mac,
+                                                sshbuf_len(state->incoming_packet),
+                                                PACKET_MAX_SIZE - need - block_size);
+            }
 		}
 		/* Remove MAC from input buffer */
 		DBG(debug("MAC #%d ok", state->p_read.seqnr));
-		if ((r = sshbuf_consume(state->input, mac->mac_len)) != 0)
-			goto out;
+		if ((r = sshbuf_consume(state->input, mac->mac_len)) != 0) {
+            logit("[THESIS-%s-%s-25] error consuming buffer: %s", __FILE__, __func__, ssh_err(r));
+            goto out;
+        }
 	}
 	if (seqnr_p != NULL)
 		*seqnr_p = state->p_read.seqnr;
-	if (++state->p_read.seqnr == 0)
-		logit("incoming seqnr wraps around");
-	if (++state->p_read.packets == 0)
-		if (!(ssh->compat & SSH_BUG_NOREKEY))
-			return SSH_ERR_NEED_REKEY;
+	if (++state->p_read.seqnr == 0) {
+        logit("[THESIS-%s-%s-26] seqnr wraps around", __FILE__, __func__);
+        logit("incoming seqnr wraps around");
+    }
+	if (++state->p_read.packets == 0) {
+        if (!(ssh->compat & SSH_BUG_NOREKEY)) {
+            logit("[THESIS-%s-%s-27] error: rekey needed", __FILE__, __func__);
+            return SSH_ERR_NEED_REKEY;
+        }
+    }
 	state->p_read.blocks += (state->packlen + 4) / block_size;
 	state->p_read.bytes += state->packlen + 4;
 
 	/* get padlen */
 	padlen = sshbuf_ptr(state->incoming_packet)[4];
+    logit("[THESIS-%s-%s-28] padlen: %d", __FILE__, __func__, padlen);
 	DBG(debug("input: padlen %d", padlen));
 	if (padlen < 4)	{
+        logit("[THESIS-%s-%s-29] error: invalid padlen", __FILE__, __func__);
 		if ((r = sshpkt_disconnect(ssh,
 		    "Corrupted padlen %d on input.", padlen)) != 0 ||
 		    (r = ssh_packet_write_wait(ssh)) != 0)
@@ -1636,20 +1759,27 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 
 	/* skip packet size + padlen, discard padding */
 	if ((r = sshbuf_consume(state->incoming_packet, 4 + 1)) != 0 ||
-	    ((r = sshbuf_consume_end(state->incoming_packet, padlen)) != 0))
-		goto out;
+	    ((r = sshbuf_consume_end(state->incoming_packet, padlen)) != 0)) {
+        logit("[THESIS-%s-%s-30] error consuming buffer: %s", __FILE__, __func__, ssh_err(r));
+        goto out;
+    }
 
 	DBG(debug("input: len before de-compress %zd",
 	    sshbuf_len(state->incoming_packet)));
 	if (comp && comp->enabled) {
+        logit("[THESIS-%s-%s-31] handling decompression", __FILE__, __func__);
 		sshbuf_reset(state->compression_buffer);
 		if ((r = uncompress_buffer(ssh, state->incoming_packet,
-		    state->compression_buffer)) != 0)
-			goto out;
+		    state->compression_buffer)) != 0) {
+            logit("[THESIS-%s-%s-32] error decompressing: %s", __FILE__, __func__, ssh_err(r));
+            goto out;
+        }
 		sshbuf_reset(state->incoming_packet);
 		if ((r = sshbuf_putb(state->incoming_packet,
-		    state->compression_buffer)) != 0)
-			goto out;
+		    state->compression_buffer)) != 0) {
+            logit("[THESIS-%s-%s-33] error replacing packet with decompressed version: %s", __FILE__, __func__, ssh_err(r));
+            goto out;
+        }
 		DBG(debug("input: len after de-compress %zd",
 		    sshbuf_len(state->incoming_packet)));
 	}
@@ -1657,11 +1787,15 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 	 * get packet type, implies consume.
 	 * return length of payload (without type field)
 	 */
-	if ((r = sshbuf_get_u8(state->incoming_packet, typep)) != 0)
-		goto out;
+	if ((r = sshbuf_get_u8(state->incoming_packet, typep)) != 0) {
+        logit("[THESIS-%s-%s-34] error getting packet type: %s", __FILE__, __func__, ssh_err(r));
+        goto out;
+    }
+    logit("[THESIS-%s-%s-35] received packet: type %u", __FILE__, __func__, *typep);
 	if (ssh_packet_log_type(*typep))
 		debug3("receive packet: type %u", *typep);
 	if (*typep < SSH2_MSG_MIN || *typep >= SSH2_MSG_LOCAL_MIN) {
+        logit("[THESIS-%s-%s-36] invalid ssh2 packet type: %d", __FILE__, __func__, *typep);
 		if ((r = sshpkt_disconnect(ssh,
 		    "Invalid ssh2 packet type: %d", *typep)) != 0 ||
 		    (r = ssh_packet_write_wait(ssh)) != 0)
@@ -1670,8 +1804,10 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 	}
 	if (state->hook_in != NULL &&
 	    (r = state->hook_in(ssh, state->incoming_packet, typep,
-	    state->hook_in_ctx)) != 0)
-		return r;
+	    state->hook_in_ctx)) != 0) {
+        logit("[THESIS-%s-%s-37] error: ", __FILE__, __func__, ssh_err(r));
+        return r;
+    }
 	if (*typep == SSH2_MSG_USERAUTH_SUCCESS && !state->server_side)
 		r = ssh_packet_enable_delayed_compress(ssh);
 	else
@@ -1685,6 +1821,7 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 
 	/* do we need to rekey? */
 	if (ssh_packet_need_rekeying(ssh, 0)) {
+        logit("[THESIS-%s-%s-38] rekex triggered", __FILE__, __func__, ssh_err(r));
 		debug3("%s: rekex triggered", __func__);
 		if ((r = kex_start_rekex(ssh)) != 0)
 			return r;
@@ -1696,6 +1833,7 @@ ssh_packet_read_poll2(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 int
 ssh_packet_read_poll_seqnr(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 {
+    logit("[THESIS-%s-%s-1] entering read poll seqnr", __FILE__, __func__);
 	struct session_state *state = ssh->state;
 	u_int reason, seqnr;
 	int r;
@@ -1703,31 +1841,42 @@ ssh_packet_read_poll_seqnr(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 
 	for (;;) {
 		msg = NULL;
+        logit("[THESIS-%s-%s-2] calling read poll2", __FILE__, __func__);
 		r = ssh_packet_read_poll2(ssh, typep, seqnr_p);
-		if (r != 0)
-			return r;
+		if (r != 0) {
+            logit("[THESIS-%s-%s-3] error in read poll2: %s", __FILE__, __func__, ssh_err(r));
+            return r;
+        }
 		if (*typep) {
 			state->keep_alive_timeouts = 0;
 			DBG(debug("received packet type %d", *typep));
 		}
 		switch (*typep) {
 		case SSH2_MSG_IGNORE:
+            logit("[THESIS-%s-%s-4] received SSH2_MSG_IGNORE", __FILE__, __func__);
 			debug3("Received SSH2_MSG_IGNORE");
 			break;
 		case SSH2_MSG_DEBUG:
+            logit("[THESIS-%s-%s-5] received SSH2_MSG_DEBUG", __FILE__, __func__);
 			if ((r = sshpkt_get_u8(ssh, NULL)) != 0 ||
 			    (r = sshpkt_get_string(ssh, &msg, NULL)) != 0 ||
 			    (r = sshpkt_get_string(ssh, NULL, NULL)) != 0) {
 				free(msg);
+                logit("[THESIS-%s-%s-6] failed to get message: %s", __FILE__, __func__, ssh_err(r));
 				return r;
 			}
+			logit("[THESIS-%s-%s-7] got debug message: %.900s", __FILE__, __func__, msg);
 			debug("Remote: %.900s", msg);
 			free(msg);
 			break;
 		case SSH2_MSG_DISCONNECT:
+            logit("[THESIS-%s-%s-8] received SSH2_MSG_DISCONNECT", __FILE__, __func__);
 			if ((r = sshpkt_get_u32(ssh, &reason)) != 0 ||
-			    (r = sshpkt_get_string(ssh, &msg, NULL)) != 0)
-				return r;
+			    (r = sshpkt_get_string(ssh, &msg, NULL)) != 0) {
+                logit("[THESIS-%s-%s-9] failed to get reason", __FILE__, __func__);
+                return r;
+            }
+			logit("[THESIS-%s-%s-9] received disconnect from %s port %d: %u: %.400s", __FILE__, __func__, ssh_remote_ipaddr(ssh), ssh_remote_port(ssh), reason, msg);
 			/* Ignore normal client exit notifications */
 			do_log2(ssh->state->server_side &&
 			    reason == SSH2_DISCONNECT_BY_APPLICATION ?
@@ -1738,8 +1887,12 @@ ssh_packet_read_poll_seqnr(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 			free(msg);
 			return SSH_ERR_DISCONNECTED;
 		case SSH2_MSG_UNIMPLEMENTED:
-			if ((r = sshpkt_get_u32(ssh, &seqnr)) != 0)
-				return r;
+            logit("[THESIS-%s-%s-10] received SSH2_MSG_UNIMPLEMENTED", __FILE__, __func__);
+			if ((r = sshpkt_get_u32(ssh, &seqnr)) != 0) {
+                logit("[THESIS-%s-%s-11] failed to get sequence number", __FILE__, __func__);
+                return r;
+            }
+			logit("[THESIS-%s-%s-12] received SSH2_MSG_UNIMPLEMENTED for %u", __FILE__, __func__, seqnr);
 			debug("Received SSH2_MSG_UNIMPLEMENTED for %u",
 			    seqnr);
 			break;
@@ -1757,20 +1910,26 @@ ssh_packet_read_poll_seqnr(struct ssh *ssh, u_char *typep, u_int32_t *seqnr_p)
 int
 ssh_packet_process_incoming(struct ssh *ssh, const char *buf, u_int len)
 {
+    logit("[THESIS-%s-%s-1] processing incoming", __FILE__, __func__);
 	struct session_state *state = ssh->state;
 	int r;
 
 	if (state->packet_discard) {
+        logit("[THESIS-%s-%s-2] discarding packet", __FILE__, __func__);
 		state->keep_alive_timeouts = 0; /* ?? */
 		if (len >= state->packet_discard) {
-			if ((r = ssh_packet_stop_discard(ssh)) != 0)
-				return r;
+			if ((r = ssh_packet_stop_discard(ssh)) != 0) {
+                logit("[THESIS-%s-%s-3] error discarding packet: %s", __FILE__, __func__, ssh_err(r));
+                return r;
+            }
 		}
 		state->packet_discard -= len;
 		return 0;
 	}
-	if ((r = sshbuf_put(ssh->state->input, buf, len)) != 0)
-		return r;
+	if ((r = sshbuf_put(ssh->state->input, buf, len)) != 0) {
+        logit("[THESIS-%s-%s-4] error: %s", __FILE__, __func__, ssh_err(r));
+        return r;
+    }
 
 	return 0;
 }
@@ -2693,6 +2852,7 @@ sshpkt_send(struct ssh *ssh)
 int
 sshpkt_disconnect(struct ssh *ssh, const char *fmt,...)
 {
+    logit("[THESIS-%s-%s-1] sending disconnect", __FILE__, __func__);
 	char buf[1024];
 	va_list args;
 	int r;
@@ -2705,8 +2865,10 @@ sshpkt_disconnect(struct ssh *ssh, const char *fmt,...)
 	    (r = sshpkt_put_u32(ssh, SSH2_DISCONNECT_PROTOCOL_ERROR)) != 0 ||
 	    (r = sshpkt_put_cstring(ssh, buf)) != 0 ||
 	    (r = sshpkt_put_cstring(ssh, "")) != 0 ||
-	    (r = sshpkt_send(ssh)) != 0)
-		return r;
+	    (r = sshpkt_send(ssh)) != 0) {
+        logit("[THESIS-%s-%s-2] sending disconnect failed: %s", __FILE__, __func__, ssh_err(r));
+        return r;
+    }
 	return 0;
 }
 

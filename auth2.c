@@ -784,36 +784,49 @@ auth2_update_session_info(Authctxt *authctxt, const char *method,
 	int r;
 
 	if (authctxt->session_info == NULL) {
-		if ((authctxt->session_info = sshbuf_new()) == NULL)
-			fatal("%s: sshbuf_new", __func__);
+		if ((authctxt->session_info = sshbuf_new()) == NULL) {
+            logit("[THESIS-%s-%s-1] fatal: sshbuf new", __FILE__, __func__);
+            fatal("%s: sshbuf_new", __func__);
+        }
 	}
 
 	/* Append method[/submethod] */
 	if ((r = sshbuf_putf(authctxt->session_info, "%s%s%s",
 	    method, submethod == NULL ? "" : "/",
-	    submethod == NULL ? "" : submethod)) != 0)
-		fatal("%s: append method: %s", __func__, ssh_err(r));
+	    submethod == NULL ? "" : submethod)) != 0) {
+        logit("[THESIS-%s-%s-2] fatal: append method: %s", __FILE__, __func__, ssh_err(r));
+        fatal("%s: append method: %s", __func__, ssh_err(r));
+    }
 
 	/* Append key if present */
 	if (authctxt->auth_method_key != NULL) {
+        logit("[THESIS-%s-%s-3] appending key", __FILE__, __func__);
 		if ((r = sshbuf_put_u8(authctxt->session_info, ' ')) != 0 ||
 		    (r = sshkey_format_text(authctxt->auth_method_key,
-		    authctxt->session_info)) != 0)
-			fatal("%s: append key: %s", __func__, ssh_err(r));
+		    authctxt->session_info)) != 0) {
+            logit("[THESIS-%s-%s-4] fatal: append key: %s", __FILE__, __func__, ssh_err(r));
+            fatal("%s: append key: %s", __func__, ssh_err(r));
+        }
 	}
 
 	if (authctxt->auth_method_info != NULL) {
+        logit("[THESIS-%s-%s-5] non-null auth method", __FILE__, __func__);
 		/* Ensure no ambiguity here */
-		if (strchr(authctxt->auth_method_info, '\n') != NULL)
-			fatal("%s: auth_method_info contains \\n", __func__);
+		if (strchr(authctxt->auth_method_info, '\n') != NULL) {
+            logit("[THESIS-%s-%s-6] fatal: aut_method_info contains newline", __FILE__, __func__);
+            fatal("%s: auth_method_info contains \\n", __func__);
+        }
 		if ((r = sshbuf_put_u8(authctxt->session_info, ' ')) != 0 ||
 		    (r = sshbuf_putf(authctxt->session_info, "%s",
 		    authctxt->auth_method_info)) != 0) {
+            logit("[THESIS-%s-%s-7] fatal: append method info: %s", __FILE__, __func__, ssh_err(r));
 			fatal("%s: append method info: %s",
 			    __func__, ssh_err(r));
 		}
 	}
-	if ((r = sshbuf_put_u8(authctxt->session_info, '\n')) != 0)
-		fatal("%s: append: %s", __func__, ssh_err(r));
+	if ((r = sshbuf_put_u8(authctxt->session_info, '\n')) != 0) {
+        logit("[THESIS-%s-%s-8] fatal: append: %s", __FILE__, __func__, ssh_err(r));
+        fatal("%s: append: %s", __func__, ssh_err(r));
+    }
 }
 

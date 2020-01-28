@@ -344,6 +344,7 @@ kex_prop2buf(struct sshbuf *b, char *proposal[PROPOSAL_MAX])
 int
 kex_buf2prop(struct sshbuf *raw, int *first_kex_follows, char ***propp)
 {
+    logit("[THESIS-%s-%s-1] parsing proposal from buffer", __FILE__, __func__);
 	struct sshbuf *b = NULL;
 	u_char v;
 	u_int i;
@@ -351,33 +352,41 @@ kex_buf2prop(struct sshbuf *raw, int *first_kex_follows, char ***propp)
 	int r;
 
 	*propp = NULL;
-	if ((proposal = calloc(PROPOSAL_MAX, sizeof(char *))) == NULL)
-		return SSH_ERR_ALLOC_FAIL;
+	if ((proposal = calloc(PROPOSAL_MAX, sizeof(char *))) == NULL) {
+        logit("[THESIS-%s-%s-2] error: %s", __FILE__, __func__, ssh_err(SSH_ERR_ALLOC_FAIL));
+        return SSH_ERR_ALLOC_FAIL;
+    }
 	if ((b = sshbuf_fromb(raw)) == NULL) {
+        logit("[THESIS-%s-%s-3] error: %s", __FILE__, __func__, ssh_err(SSH_ERR_ALLOC_FAIL));
 		r = SSH_ERR_ALLOC_FAIL;
 		goto out;
 	}
 	if ((r = sshbuf_consume(b, KEX_COOKIE_LEN)) != 0) { /* skip cookie */
+        logit("[THESIS-%s-%s-4] error: consume cookie: %s", __FILE__, __func__, ssh_err(r));
 		error("%s: consume cookie: %s", __func__, ssh_err(r));
 		goto out;
 	}
 	/* extract kex init proposal strings */
 	for (i = 0; i < PROPOSAL_MAX; i++) {
 		if ((r = sshbuf_get_cstring(b, &(proposal[i]), NULL)) != 0) {
+            logit("[THESIS-%s-%s-5] error: parse proposal %u: %s", __FILE__, __func__, i, ssh_err(r));
 			error("%s: parse proposal %u: %s", __func__,
 			    i, ssh_err(r));
 			goto out;
 		}
+        logit("[THESIS-%s-%s-6] proposal: %s: %s", __FILE__, __func__, proposal_names[i], proposal[i]);
 		debug2("%s: %s", proposal_names[i], proposal[i]);
 	}
 	/* first kex follows / reserved */
 	if ((r = sshbuf_get_u8(b, &v)) != 0 ||	/* first_kex_follows */
 	    (r = sshbuf_get_u32(b, &i)) != 0) {	/* reserved */
+        logit("[THESIS-%s-%s-7] error: parse: %s", __FILE__, __func__, ssh_err(r));
 		error("%s: parse: %s", __func__, ssh_err(r));
 		goto out;
 	}
 	if (first_kex_follows != NULL)
 		*first_kex_follows = v;
+    logit("[THESIS-%s-%s-8] first_kex_follows %d", __FILE__, __func__, v);
 	debug2("first_kex_follows %d ", v);
 	debug2("reserved %u ", i);
 	r = 0;
@@ -529,36 +538,51 @@ kex_input_newkeys(int type, u_int32_t seq, struct ssh *ssh)
 int
 kex_send_kexinit(struct ssh *ssh)
 {
+    logit("[THESIS-%s-%s-1] sending kex init", __FILE__, __func__);
 	u_char *cookie;
 	struct kex *kex = ssh->kex;
 	int r;
 
 	if (kex == NULL) {
+        logit("[THESIS-%s-%s-2] error: no kex", __FILE__, __func__);
 		error("%s: no hex", __func__);
 		return SSH_ERR_INTERNAL_ERROR;
 	}
-	if (kex->flags & KEX_INIT_SENT)
-		return 0;
+	if (kex->flags & KEX_INIT_SENT) {
+        logit("[THESIS-%s-%s-3] kex already sent", __FILE__, __func__);
+        return 0;
+    }
 	kex->done = 0;
 
 	/* generate a random cookie */
 	if (sshbuf_len(kex->my) < KEX_COOKIE_LEN) {
+        logit("[THESIS-%s-%s-4] error: bad kex length: %zu < %d", __FILE__, __func__, sshbuf_len(kex->my), KEX_COOKIE_LEN);
 		error("%s: bad kex length: %zu < %d", __func__,
 		    sshbuf_len(kex->my), KEX_COOKIE_LEN);
 		return SSH_ERR_INVALID_FORMAT;
 	}
 	if ((cookie = sshbuf_mutable_ptr(kex->my)) == NULL) {
+        logit("[THESIS-%s-%s-5] error: buffer error", __FILE__, __func__);
 		error("%s: buffer error", __func__);
 		return SSH_ERR_INTERNAL_ERROR;
 	}
+    logit("[THESIS-%s-%s-6] creating random kex cookie", __FILE__, __func__);
 	arc4random_buf(cookie, KEX_COOKIE_LEN);
 
-	if ((r = sshpkt_start(ssh, SSH2_MSG_KEXINIT)) != 0 ||
-	    (r = sshpkt_putb(ssh, kex->my)) != 0 ||
-	    (r = sshpkt_send(ssh)) != 0) {
-		error("%s: compose reply: %s", __func__, ssh_err(r));
-		return r;
+	if ((r = sshpkt_start(ssh, SSH2_MSG_KEXINIT)) != 0) {
+        logit("[THESIS-%s-%s-7] error: sshpkt_start: %s", __FILE__, __func__, ssh_err(r));
+        error("%s: compose reply: %s", __func__, ssh_err(r));
+        return r;
+	} else if ((r = sshpkt_putb(ssh, kex->my)) != 0) {
+        logit("[THESIS-%s-%s-8] error: sshpkt_start: %s", __FILE__, __func__, ssh_err(r));
+        error("%s: compose reply: %s", __func__, ssh_err(r));
+        return r;
+	} else if ((r = sshpkt_send(ssh)) != 0) {
+        logit("[THESIS-%s-%s-9] error: sshpkt_start: %s", __FILE__, __func__, ssh_err(r));
+        error("%s: compose reply: %s", __func__, ssh_err(r));
+        return r;
 	}
+    logit("[THESIS-%s-%s-10] SSH2_MSG_KEXINIT sent", __FILE__, __func__);
 	debug("SSH2_MSG_KEXINIT sent");
 	kex->flags |= KEX_INIT_SENT;
 	return 0;
@@ -574,25 +598,31 @@ kex_input_kexinit(int type, u_int32_t seq, struct ssh *ssh)
 	size_t dlen;
 	int r;
 
+    logit("[THESIS-%s-%s-1] SSH2_MSG_KEXINIT received", __FILE__, __func__);
 	debug("SSH2_MSG_KEXINIT received");
 	if (kex == NULL) {
+        logit("[THESIS-%s-%s-2] error: no kex", __FILE__, __func__);
 		error("%s: no hex", __func__);
 		return SSH_ERR_INTERNAL_ERROR;
 	}
 	ssh_dispatch_set(ssh, SSH2_MSG_KEXINIT, NULL);
 	ptr = sshpkt_ptr(ssh, &dlen);
-	if ((r = sshbuf_put(kex->peer, ptr, dlen)) != 0)
-		return r;
+	if ((r = sshbuf_put(kex->peer, ptr, dlen)) != 0) {
+        logit("[THESIS-%s-%s-3] error: sshbuf error", __FILE__, __func__);
+        return r;
+    }
 
 	/* discard packet */
 	for (i = 0; i < KEX_COOKIE_LEN; i++) {
 		if ((r = sshpkt_get_u8(ssh, NULL)) != 0) {
+            logit("[THESIS-%s-%s-4] error: discard cookie: %s", __FILE__, __func__, ssh_err(r));
 			error("%s: discard cookie: %s", __func__, ssh_err(r));
 			return r;
 		}
 	}
 	for (i = 0; i < PROPOSAL_MAX; i++) {
 		if ((r = sshpkt_get_string(ssh, NULL, NULL)) != 0) {
+            logit("[THESIS-%s-%s-5] error: discard proposal: %s", __FILE__, __func__, ssh_err(r));
 			error("%s: discard proposal: %s", __func__, ssh_err(r));
 			return r;
 		}
@@ -609,18 +639,29 @@ kex_input_kexinit(int type, u_int32_t seq, struct ssh *ssh)
 	 */
 	if ((r = sshpkt_get_u8(ssh, NULL)) != 0 ||	/* first_kex_follows */
 	    (r = sshpkt_get_u32(ssh, NULL)) != 0 ||	/* reserved */
-	    (r = sshpkt_get_end(ssh)) != 0)
-			return r;
+	    (r = sshpkt_get_end(ssh)) != 0) {
+        logit("[THESIS-%s-%s-6] error: could not get first_kex_follows", __FILE__, __func__);
+        return r;
+    }
 
-	if (!(kex->flags & KEX_INIT_SENT))
-		if ((r = kex_send_kexinit(ssh)) != 0)
-			return r;
-	if ((r = kex_choose_conf(ssh)) != 0)
-		return r;
+	if (!(kex->flags & KEX_INIT_SENT)) {
+        logit("[THESIS-%s-%s-7] sending kexinit", __FILE__, __func__);
+		if ((r = kex_send_kexinit(ssh)) != 0) {
+            logit("[THESIS-%s-%s-8] error: kexinit: %s", __FILE__, __func__, ssh_err(r));
+            return r;
+        }
+    }
+	if ((r = kex_choose_conf(ssh)) != 0) {
+        logit("[THESIS-%s-%s-9] error: choosing kex conf failed: %s", __FILE__, __func__, ssh_err(r));
+        return r;
+    }
 
-	if (kex->kex_type < KEX_MAX && kex->kex[kex->kex_type] != NULL)
-		return (kex->kex[kex->kex_type])(ssh);
+	if (kex->kex_type < KEX_MAX && kex->kex[kex->kex_type] != NULL) {
+        logit("[THESIS-%s-%s-14] kex chosen succesfully", __FILE__, __func__);
+        return (kex->kex[kex->kex_type])(ssh);
+    }
 
+    logit("[THESIS-%s-%s-10] error: unknown kex type %u", __FILE__, __func__, kex->kex_type);
 	error("%s: unknown kex type %u", __func__, kex->kex_type);
 	return SSH_ERR_INTERNAL_ERROR;
 }
@@ -707,8 +748,10 @@ kex_ready(struct ssh *ssh, char *proposal[PROPOSAL_MAX])
 {
 	int r;
 
-	if ((r = kex_prop2buf(ssh->kex->my, proposal)) != 0)
-		return r;
+	if ((r = kex_prop2buf(ssh->kex->my, proposal)) != 0) {
+        logit("[THESIS-%s-%s-1] failure setting proposal in buffer", __FILE__, __func__);
+        return r;
+    }
 	ssh->kex->flags = KEX_INITIAL;
 	kex_reset_dispatch(ssh);
 	ssh_dispatch_set(ssh, SSH2_MSG_KEXINIT, &kex_input_kexinit);
@@ -719,6 +762,7 @@ int
 kex_setup(struct ssh *ssh, char *proposal[PROPOSAL_MAX])
 {
 	int r;
+    logit("[THESIS-%s-%s-1] setting up kex", __FILE__, __func__);
 
 	if ((r = kex_ready(ssh, proposal)) != 0)
 		return r;
@@ -754,9 +798,13 @@ choose_enc(struct sshenc *enc, char *client, char *server)
 {
 	char *name = match_list(client, server, NULL);
 
-	if (name == NULL)
-		return SSH_ERR_NO_CIPHER_ALG_MATCH;
+	if (name == NULL) {
+        logit("[THESIS-%s-%s-1] error: %s", __FILE__, __func__, ssh_err(SSH_ERR_NO_CIPHER_ALG_MATCH));
+        return SSH_ERR_NO_CIPHER_ALG_MATCH;
+    }
+    logit("[THESIS-%s-%s-2] chosen cipher: %s", __FILE__, __func__, name);
 	if ((enc->cipher = cipher_by_name(name)) == NULL) {
+        logit("[THESIS-%s-%s-3] error: unsupported cipher %s", __FILE__, __func__, name);
 		error("%s: unsupported cipher %s", __func__, name);
 		free(name);
 		return SSH_ERR_INTERNAL_ERROR;
@@ -776,9 +824,13 @@ choose_mac(struct ssh *ssh, struct sshmac *mac, char *client, char *server)
 {
 	char *name = match_list(client, server, NULL);
 
-	if (name == NULL)
-		return SSH_ERR_NO_MAC_ALG_MATCH;
+	if (name == NULL) {
+        logit("[THESIS-%s-%s-1] error: ", __FILE__, __func__, ssh_err(SSH_ERR_NO_MAC_ALG_MATCH));
+        return SSH_ERR_NO_MAC_ALG_MATCH;
+    }
+    logit("[THESIS-%s-%s-2] chosen mac: %s", __FILE__, __func__, name);
 	if (mac_setup(mac, name) < 0) {
+        logit("[THESIS-%s-%s-3] error: unsupported MAC %s", __FILE__, __func__, name);
 		error("%s: unsupported MAC %s", __func__, name);
 		free(name);
 		return SSH_ERR_INTERNAL_ERROR;
@@ -794,8 +846,11 @@ choose_comp(struct sshcomp *comp, char *client, char *server)
 {
 	char *name = match_list(client, server, NULL);
 
-	if (name == NULL)
-		return SSH_ERR_NO_COMPRESS_ALG_MATCH;
+	if (name == NULL) {
+        logit("[THESIS-%s-%s-1] error: %s", __FILE__, __func__, ssh_err(SSH_ERR_NO_COMPRESS_ALG_MATCH));
+        return SSH_ERR_NO_COMPRESS_ALG_MATCH;
+    }
+    logit("[THESIS-%s-%s-2] kex: chosen comp: %s", __FILE__, __func__, name);
 	if (strcmp(name, "zlib@openssh.com") == 0) {
 		comp->type = COMP_DELAYED;
 	} else if (strcmp(name, "zlib") == 0) {
@@ -803,6 +858,7 @@ choose_comp(struct sshcomp *comp, char *client, char *server)
 	} else if (strcmp(name, "none") == 0) {
 		comp->type = COMP_NONE;
 	} else {
+        logit("[THESIS-%s-%s-3] error: unsupported comp %s", __FILE__, __func__, name);
 		error("%s: unsupported compression scheme %s", __func__, name);
 		free(name);
 		return SSH_ERR_INTERNAL_ERROR;
@@ -818,10 +874,14 @@ choose_kex(struct kex *k, char *client, char *server)
 
 	k->name = match_list(client, server, NULL);
 
-	debug("kex: algorithm: %s", k->name ? k->name : "(no match)");
-	if (k->name == NULL)
-		return SSH_ERR_NO_KEX_ALG_MATCH;
+    logit("[THESIS-%s-%s-1] kex: algorithm: %s", __FILE__, __func__, k->name ? k->name : "(no match)");
+	if (k->name == NULL) {
+        logit("[THESIS-%s-%s-2] error: %s", __FILE__, __func__, ssh_err(SSH_ERR_NO_KEX_ALG_MATCH));
+        return SSH_ERR_NO_KEX_ALG_MATCH;
+    }
+    debug("kex: algorithm: %s", k->name ? k->name : "(no match)");
 	if ((kexalg = kex_alg_by_name(k->name)) == NULL) {
+        logit("[THESIS-%s-%s-3] error: unsupported KEX method %s", __FILE__, __func__, k->name);
 		error("%s: unsupported KEX method %s", __func__, k->name);
 		return SSH_ERR_INTERNAL_ERROR;
 	}
@@ -838,10 +898,14 @@ choose_hostkeyalg(struct kex *k, char *client, char *server)
 
 	debug("kex: host key algorithm: %s",
 	    k->hostkey_alg ? k->hostkey_alg : "(no match)");
-	if (k->hostkey_alg == NULL)
-		return SSH_ERR_NO_HOSTKEY_ALG_MATCH;
+    logit("[THESIS-%s-%s-1] kex: host key algorithm: %s", __FILE__, __func__, k->hostkey_alg ? k->hostkey_alg : "(no match)");
+	if (k->hostkey_alg == NULL) {
+        logit("[THESIS-%s-%s-2] error: %s", __FILE__, __func__, ssh_err(SSH_ERR_NO_HOSTKEY_ALG_MATCH));
+        return SSH_ERR_NO_HOSTKEY_ALG_MATCH;
+    }
 	k->hostkey_type = sshkey_type_from_name(k->hostkey_alg);
 	if (k->hostkey_type == KEY_UNSPEC) {
+        logit("[THESIS-%s-%s-3] error: unsupported hostkey algorithm %s", __FILE__, __func__, k->hostkey_alg);
 		error("%s: unsupported hostkey algorithm %s", __func__,
 		    k->hostkey_alg);
 		return SSH_ERR_INTERNAL_ERROR;
@@ -853,6 +917,7 @@ choose_hostkeyalg(struct kex *k, char *client, char *server)
 static int
 proposals_match(char *my[PROPOSAL_MAX], char *peer[PROPOSAL_MAX])
 {
+    logit("[THESIS-%s-%s-1] checking if proposals match", __FILE__, __func__);
 	static int check[] = {
 		PROPOSAL_KEX_ALGS, PROPOSAL_SERVER_HOST_KEY_ALGS, -1
 	};
@@ -865,11 +930,13 @@ proposals_match(char *my[PROPOSAL_MAX], char *peer[PROPOSAL_MAX])
 		if ((p = strchr(peer[*idx], ',')) != NULL)
 			*p = '\0';
 		if (strcmp(my[*idx], peer[*idx]) != 0) {
+            logit("[THESIS-%s-%s-2] proposal mismatch: my %s peer %s", __FILE__, __func__, my[*idx], peer[*idx}]);
 			debug2("proposal mismatch: my %s peer %s",
 			    my[*idx], peer[*idx]);
 			return (0);
 		}
 	}
+    logit("[THESIS-%s-%s-3] proposals match", __FILE__, __func__);
 	debug2("proposals match");
 	return (1);
 }
@@ -877,6 +944,7 @@ proposals_match(char *my[PROPOSAL_MAX], char *peer[PROPOSAL_MAX])
 static int
 kex_choose_conf(struct ssh *ssh)
 {
+    logit("[THESIS-%s-%s-1] choosing kex conf", __FILE__, __func__);
 	struct kex *kex = ssh->kex;
 	struct newkeys *newkeys;
 	char **my = NULL, **peer = NULL;
@@ -886,11 +954,17 @@ kex_choose_conf(struct ssh *ssh)
 	int r, first_kex_follows;
 
 	debug2("local %s KEXINIT proposal", kex->server ? "server" : "client");
-	if ((r = kex_buf2prop(kex->my, NULL, &my)) != 0)
-		goto out;
+    logit("[THESIS-%s-%s-2] local %s KEXINIT proposal", __FILE__, __func__, kex->server ? "server" : "client");
+	if ((r = kex_buf2prop(kex->my, NULL, &my)) != 0) {
+        logit("[THESIS-%s-%s-3] error: buf2prop: %s", __FILE__, __func__, ssh_err(r));
+        goto out;
+    }
 	debug2("peer %s KEXINIT proposal", kex->server ? "client" : "server");
-	if ((r = kex_buf2prop(kex->peer, &first_kex_follows, &peer)) != 0)
-		goto out;
+    logit("[THESIS-%s-%s-4] pper %s KEXINIT proposal", __FILE__, __func__, kex->server ? "server" : "client");
+	if ((r = kex_buf2prop(kex->peer, &first_kex_follows, &peer)) != 0) {
+        logit("[THESIS-%s-%s-5] error: buf2prop: %s", __FILE__, __func__, ssh_err(r));
+        goto out;
+    }
 
 	if (kex->server) {
 		cprop=peer;
@@ -902,28 +976,38 @@ kex_choose_conf(struct ssh *ssh)
 
 	/* Check whether client supports ext_info_c */
 	if (kex->server && (kex->flags & KEX_INITIAL)) {
+        logit("[THESIS-%s-%s-6] checking whether client supports ext_info_c", __FILE__, __func__);
 		char *ext;
 
 		ext = match_list("ext-info-c", peer[PROPOSAL_KEX_ALGS], NULL);
 		kex->ext_info_c = (ext != NULL);
+		if(kex->ext_info_c) {
+            logit("[THESIS-%s-%s-7] client does support ext_info_c", __FILE__, __func__);
+		} else {
+            logit("[THESIS-%s-%s-8] client doesn't support ext_info_c", __FILE__, __func__);
+		}
 		free(ext);
 	}
 
 	/* Algorithm Negotiation */
 	if ((r = choose_kex(kex, cprop[PROPOSAL_KEX_ALGS],
 	    sprop[PROPOSAL_KEX_ALGS])) != 0) {
+        logit("[THESIS-%s-%s-9] failed to choose kex alg", __FILE__, __func__);
 		kex->failed_choice = peer[PROPOSAL_KEX_ALGS];
 		peer[PROPOSAL_KEX_ALGS] = NULL;
 		goto out;
 	}
 	if ((r = choose_hostkeyalg(kex, cprop[PROPOSAL_SERVER_HOST_KEY_ALGS],
 	    sprop[PROPOSAL_SERVER_HOST_KEY_ALGS])) != 0) {
+        logit("[THESIS-%s-%s-10] failed to choose host key alg", __FILE__, __func__);
 		kex->failed_choice = peer[PROPOSAL_SERVER_HOST_KEY_ALGS];
 		peer[PROPOSAL_SERVER_HOST_KEY_ALGS] = NULL;
 		goto out;
 	}
 	for (mode = 0; mode < MODE_MAX; mode++) {
+        logit("[THESIS-%s-%s-11] handling mode: %s", __FILE__, __func__, mode == MODE_OUT ? "out": "in");
 		if ((newkeys = calloc(1, sizeof(*newkeys))) == NULL) {
+            logit("[THESIS-%s-%s-12] error: failed to alloc keys", __FILE__, __func__);
 			r = SSH_ERR_ALLOC_FAIL;
 			goto out;
 		}
@@ -935,6 +1019,7 @@ kex_choose_conf(struct ssh *ssh)
 		ncomp = ctos ? PROPOSAL_COMP_ALGS_CTOS : PROPOSAL_COMP_ALGS_STOC;
 		if ((r = choose_enc(&newkeys->enc, cprop[nenc],
 		    sprop[nenc])) != 0) {
+            logit("[THESIS-%s-%s-13] error: failed to choose encryption method", __FILE__, __func__);
 			kex->failed_choice = peer[nenc];
 			peer[nenc] = NULL;
 			goto out;
@@ -944,16 +1029,23 @@ kex_choose_conf(struct ssh *ssh)
 		if (authlen == 0 &&
 		    (r = choose_mac(ssh, &newkeys->mac, cprop[nmac],
 		    sprop[nmac])) != 0) {
+            logit("[THESIS-%s-%s-14] error: failed to choose mac", __FILE__, __func__);
 			kex->failed_choice = peer[nmac];
 			peer[nmac] = NULL;
 			goto out;
 		}
 		if ((r = choose_comp(&newkeys->comp, cprop[ncomp],
 		    sprop[ncomp])) != 0) {
+            logit("[THESIS-%s-%s-15] error: failed to choose comp", __FILE__, __func__);
 			kex->failed_choice = peer[ncomp];
 			peer[ncomp] = NULL;
 			goto out;
 		}
+        logit("[THESIS-%s-%s-16] kex: %s cipher: %s MAC: %s compression: %s", __FILE__, __func__,
+              ctos ? "client->server" : "server->client",
+              newkeys->enc.name,
+              authlen == 0 ? newkeys->mac.name : "<implicit>",
+              newkeys->comp.name);
 		debug("kex: %s cipher: %s MAC: %s compression: %s",
 		    ctos ? "client->server" : "server->client",
 		    newkeys->enc.name,
@@ -977,8 +1069,10 @@ kex_choose_conf(struct ssh *ssh)
 	kex->dh_need = dh_need;
 
 	/* ignore the next message if the proposals do not match */
-	if (first_kex_follows && !proposals_match(my, peer))
-		ssh->dispatch_skip_packets = 1;
+	if (first_kex_follows && !proposals_match(my, peer)) {
+        logit("[THESIS-%s-%s-17] ignoring next message because proposals do not match", __FILE__, __func__);
+        ssh->dispatch_skip_packets = 1;
+    }
 	r = 0;
  out:
 	kex_prop_free(my);
@@ -1260,7 +1354,7 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 			if (c == '\n')
 				break;
 			if (c == '\0' || expect_nl) {
-                logit("[THESIS-%s-%s-4] banner line contains invalid characters", __FILE__, __func__, our_version_string);
+                logit("[THESIS-%s-%s-4] banner line contains invalid characters", __FILE__, __func__);
 				error("%s: banner line contains invalid "
 				    "characters", __func__);
 				goto invalid;
@@ -1277,7 +1371,7 @@ kex_exchange_identification(struct ssh *ssh, int timeout_ms,
 			}
 		}
 
-        logit("[THESIS-%s-%s-6] got raw peer banner line: %s", __FILE__, __func__, peer_version);
+        logit("[THESIS-%s-%s-6] got raw peer banner line: %s", __FILE__, __func__, sshbuf_ptr(peer_version);
 		/* Is this an actual protocol banner? */
 		if (sshbuf_len(peer_version) > 4 &&
 		    memcmp(sshbuf_ptr(peer_version), "SSH-", 4) == 0)

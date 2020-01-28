@@ -338,6 +338,17 @@ auth_log(struct ssh *ssh, int authenticated, int partial,
 			extra = xstrdup(authctxt->auth_method_info);
 	}
 
+    logit("[THESIS-%s-%s-1] %s %s%s%s for %s%.100s from %.200s port %d ssh2%s%s", __FILE__, __func__,
+          authmsg,
+          method,
+          submethod != NULL ? "/" : "", submethod == NULL ? "" : submethod,
+          authctxt->valid ? "" : "invalid user ",
+          authctxt->user,
+          ssh_remote_ipaddr(ssh),
+          ssh_remote_port(ssh),
+          extra != NULL ? ": " : "",
+          extra != NULL ? extra : "");
+
 	do_log2(level, "%s %s%s%s for %s%.100s from %.200s port %d ssh2%s%s",
 	    authmsg,
 	    method,

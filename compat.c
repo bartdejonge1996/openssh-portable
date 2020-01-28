@@ -186,50 +186,79 @@ proto_spec(const char *spec)
 char *
 compat_cipher_proposal(char *cipher_prop)
 {
-	if (!(datafellows & SSH_BUG_BIGENDIANAES))
-		return cipher_prop;
+    logit("[THESIS-%s-%s-1] original cipher proposal: %s", __FILE__, __func__, cipher_prop);
+	if (!(datafellows & SSH_BUG_BIGENDIANAES)) {
+        logit("[THESIS-%s-%s-2] SSH_BUG_BIGENDIANAES not active, returning initial proposal", __FILE__, __func__);
+        return cipher_prop;
+    }
 	debug2("%s: original cipher proposal: %s", __func__, cipher_prop);
-	if ((cipher_prop = match_filter_blacklist(cipher_prop, "aes*")) == NULL)
-		fatal("match_filter_blacklist failed");
+	if ((cipher_prop = match_filter_blacklist(cipher_prop, "aes*")) == NULL) {
+        logit("[THESIS-%s-%s-3] fatal: match_filter_blacklist failed", __FILE__, __func__);
+        fatal("match_filter_blacklist failed");
+    }
+    logit("[THESIS-%s-%s-4] compat cipher proposal: %s", __FILE__, __func__, cipher_prop);
 	debug2("%s: compat cipher proposal: %s", __func__, cipher_prop);
-	if (*cipher_prop == '\0')
-		fatal("No supported ciphers found");
+	if (*cipher_prop == '\0') {
+        logit("[THESIS-%s-%s-5] fatal: no supported ciphers found", __FILE__, __func__);
+        fatal("No supported ciphers found");
+    }
 	return cipher_prop;
 }
 
 char *
 compat_pkalg_proposal(char *pkalg_prop)
 {
-	if (!(datafellows & SSH_BUG_RSASIGMD5))
-		return pkalg_prop;
+    logit("[THESIS-%s-%s-1] original public key proposal: %s", __FILE__, __func__, pkalg_prop);
+	if (!(datafellows & SSH_BUG_RSASIGMD5)) {
+        logit("[THESIS-%s-%s-2] SSH_BUG_RSASIGMD5 not active, returning initial proposal", __FILE__, __func__);
+        return pkalg_prop;
+    }
+    logit("[THESIS-%s-%s-3] handling SSH_BUG_RSASIGMD5", __FILE__, __func__);
 	debug2("%s: original public key proposal: %s", __func__, pkalg_prop);
-	if ((pkalg_prop = match_filter_blacklist(pkalg_prop, "ssh-rsa")) == NULL)
-		fatal("match_filter_blacklist failed");
+	if ((pkalg_prop = match_filter_blacklist(pkalg_prop, "ssh-rsa")) == NULL) {
+        logit("[THESIS-%s-%s-4] fatal: match_filter_blacklist failed", __FILE__, __func__);
+        fatal("match_filter_blacklist failed");
+    }
+    logit("[THESIS-%s-%s-5] compat public key proposal: %s", __FILE__, __func__, pkalg_prop);
 	debug2("%s: compat public key proposal: %s", __func__, pkalg_prop);
-	if (*pkalg_prop == '\0')
-		fatal("No supported PK algorithms found");
+	if (*pkalg_prop == '\0') {
+        logit("[THESIS-%s-%s-6] fatal: no supported PK algorithms found", __FILE__, __func__);
+        fatal("No supported PK algorithms found");
+    }
 	return pkalg_prop;
 }
 
 char *
 compat_kex_proposal(char *p)
 {
-	if ((datafellows & (SSH_BUG_CURVE25519PAD|SSH_OLD_DHGEX)) == 0)
-		return p;
+    logit("[THESIS-%s-%s-1] original KEX proposal: %s", __FILE__, __func__, p);
+	if ((datafellows & (SSH_BUG_CURVE25519PAD|SSH_OLD_DHGEX)) == 0) {
+        logit("[THESIS-%s-%s-2] not relevant bugs active, returning initial proposal", __FILE__, __func__);
+        return p;
+    }
 	debug2("%s: original KEX proposal: %s", __func__, p);
-	if ((datafellows & SSH_BUG_CURVE25519PAD) != 0)
-		if ((p = match_filter_blacklist(p,
-		    "curve25519-sha256@libssh.org")) == NULL)
-			fatal("match_filter_blacklist failed");
+	if ((datafellows & SSH_BUG_CURVE25519PAD) != 0) {
+        logit("[THESIS-%s-%s-3] handling SSH_BUG_CURVE25519PAD", __FILE__, __func__);
+        if ((p = match_filter_blacklist(p, "curve25519-sha256@libssh.org")) == NULL) {
+            logit("[THESIS-%s-%s-4] fatal: match_filter_blacklist failed", __FILE__, __func__);
+            fatal("match_filter_blacklist failed");
+        }
+    }
 	if ((datafellows & SSH_OLD_DHGEX) != 0) {
+        logit("[THESIS-%s-%s-5] handling SSH_OLD_DHGEX", __FILE__, __func__);
 		if ((p = match_filter_blacklist(p,
 		    "diffie-hellman-group-exchange-sha256,"
-		    "diffie-hellman-group-exchange-sha1")) == NULL)
-			fatal("match_filter_blacklist failed");
+		    "diffie-hellman-group-exchange-sha1")) == NULL) {
+            logit("[THESIS-%s-%s-6] fatal: match_filter_blacklist failed", __FILE__, __func__);
+            fatal("match_filter_blacklist failed");
+        }
 	}
+    logit("[THESIS-%s-%s-7] compat KEX proposal: %s", __FILE__, __func__, p);
 	debug2("%s: compat KEX proposal: %s", __func__, p);
-	if (*p == '\0')
-		fatal("No supported key exchange algorithms found");
+	if (*p == '\0') {
+        logit("[THESIS-%s-%s-8] fatal: No supported key exchange algorithms found", __FILE__, __func__);
+        fatal("No supported key exchange algorithms found");
+    }
 	return p;
 }
 

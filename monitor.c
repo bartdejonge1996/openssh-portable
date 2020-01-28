@@ -275,6 +275,7 @@ monitor_child_preauth(struct ssh *ssh, struct monitor *pmonitor)
 	int authenticated = 0, partial = 0;
 
 	debug3("preauth child monitor started");
+    logit("[THESIS-%s-%s-1] preauth child monitor started", __FILE__, __func__);
 
 	if (pmonitor->m_recvfd >= 0)
 		close(pmonitor->m_recvfd);
@@ -295,6 +296,7 @@ monitor_child_preauth(struct ssh *ssh, struct monitor *pmonitor)
 
 	/* The first few requests do not require asynchronous access */
 	while (!authenticated) {
+        logit("[THESIS-%s-%s-2] handling request while not yet authenticated", __FILE__, __func__);
 		partial = 0;
 		auth_method = "unknown";
 		auth_submethod = NULL;
@@ -308,6 +310,7 @@ monitor_child_preauth(struct ssh *ssh, struct monitor *pmonitor)
 			if (authenticated &&
 			    !auth2_update_methods_lists(authctxt,
 			    auth_method, auth_submethod)) {
+                logit("[THESIS-%s-%s-3] method %s: partial", __FILE__, __func__, auth_method);
 				debug3("%s: method %s: partial", __func__,
 				    auth_method);
 				authenticated = 0;
@@ -316,12 +319,17 @@ monitor_child_preauth(struct ssh *ssh, struct monitor *pmonitor)
 		}
 
 		if (authenticated) {
-			if (!(ent->flags & MON_AUTHDECIDE))
-				fatal("%s: unexpected authentication from %d",
-				    __func__, ent->type);
+            logit("[THESIS-%s-%s-4] authenticated", __FILE__, __func__);
+			if (!(ent->flags & MON_AUTHDECIDE)) {
+                logit("[THESIS-%s-%s-5] unexpected authentication from %d", __FILE__, __func__, ent->type);
+                fatal("%s: unexpected authentication from %d",
+                      __func__, ent->type);
+            }
 			if (authctxt->pw->pw_uid == 0 &&
-			    !auth_root_allowed(ssh, auth_method))
-				authenticated = 0;
+			    !auth_root_allowed(ssh, auth_method)) {
+                logit("[THESIS-%s-%s-6] root was authenticated, but no root logins allowed, deauthicating", __FILE__, __func__);
+                authenticated = 0;
+            }
 #ifdef USE_PAM
 			/* PAM needs to perform account checks after auth */
 			if (options.use_pam && authenticated) {
@@ -341,20 +349,28 @@ monitor_child_preauth(struct ssh *ssh, struct monitor *pmonitor)
 		if (ent->flags & (MON_AUTHDECIDE|MON_ALOG)) {
 			auth_log(ssh, authenticated, partial,
 			    auth_method, auth_submethod);
-			if (!partial && !authenticated)
-				authctxt->failures++;
+			if (!partial && !authenticated) {
+                logit("[THESIS-%s-%s-7] authentication failed", __FILE__, __func__);
+                authctxt->failures++;
+            }
 			if (authenticated || partial) {
+                logit("[THESIS-%s-%s-8] updating auth session info", __FILE__, __func__);
 				auth2_update_session_info(authctxt,
 				    auth_method, auth_submethod);
 			}
 		}
 	}
 
-	if (!authctxt->valid)
-		fatal("%s: authenticated invalid user", __func__);
-	if (strcmp(auth_method, "unknown") == 0)
-		fatal("%s: authentication method name unknown", __func__);
+	if (!authctxt->valid) {
+        logit("[THESIS-%s-%s-9] fatal: authenticated invalid user", __FILE__, __func__);
+        fatal("%s: authenticated invalid user", __func__);
+    }
+	if (strcmp(auth_method, "unknown") == 0) {
+        logit("[THESIS-%s-%s-10] fatal: authentication method name unknown", __FILE__, __func__);
+        fatal("%s: authentication method name unknown", __func__);
+    }
 
+    logit("[THESIS-%s-%s-10] %s has been authenticated by privileged process", __FILE__, __func__, authctxt->user);
 	debug("%s: %s has been authenticated by privileged process",
 	    __func__, authctxt->user);
 	ssh->authctxt = NULL;
@@ -485,6 +501,7 @@ monitor_read(struct ssh *ssh, struct monitor *pmonitor, struct mon_table *ent,
 		if (poll(pfd, pfd[1].fd == -1 ? 1 : 2, -1) == -1) {
 			if (errno == EINTR || errno == EAGAIN)
 				continue;
+            logit("[THESIS-%s-%s-1] fatal: poll: %s", __FILE__, __func__, strerror(errno));
 			fatal("%s: poll: %s", __func__, strerror(errno));
 		}
 		if (pfd[1].revents) {
@@ -499,13 +516,18 @@ monitor_read(struct ssh *ssh, struct monitor *pmonitor, struct mon_table *ent,
 			break;  /* Continues below */
 	}
 
-	if ((m = sshbuf_new()) == NULL)
-		fatal("%s: sshbuf_new", __func__);
+	if ((m = sshbuf_new()) == NULL) {
+        logit("[THESIS-%s-%s-2] fatal: sshbuf new", __FILE__, __func__);
+        fatal("%s: sshbuf_new", __func__);
+    }
 
 	mm_request_receive(pmonitor->m_sendfd, m);
-	if ((r = sshbuf_get_u8(m, &type)) != 0)
-		fatal("%s: decode: %s", __func__, ssh_err(r));
+	if ((r = sshbuf_get_u8(m, &type)) != 0) {
+        logit("[THESIS-%s-%s-3] fatal: decode: %s", __FILE__, __func__, ssh_err(r));
+        fatal("%s: decode: %s", __func__, ssh_err(r));
+    }
 
+    logit("[THESIS-%s-%s-4] checking request %d", __FILE__, __func__, type);
 	debug3("%s: checking request %d", __func__, type);
 
 	while (ent->f != NULL) {
@@ -515,14 +537,17 @@ monitor_read(struct ssh *ssh, struct monitor *pmonitor, struct mon_table *ent,
 	}
 
 	if (ent->f != NULL) {
-		if (!(ent->flags & MON_PERMIT))
+		if (!(ent->flags & MON_PERMIT)) {
+            logit("[THESIS-%s-%s-5] fatal: unpermitted request %d", __FILE__, __func__, type);
 			fatal("%s: unpermitted request %d", __func__,
 			    type);
+
 		ret = (*ent->f)(ssh, pmonitor->m_sendfd, m);
 		sshbuf_free(m);
 
 		/* The child may use this request only once, disable it */
 		if (ent->flags & MON_ONCE) {
+            logit("[THESIS-%s-%s-6] %d used once, disabling now", __FILE__, __func__, type);
 			debug2("%s: %d used once, disabling now", __func__,
 			    type);
 			ent->flags &= ~MON_PERMIT;
@@ -534,6 +559,7 @@ monitor_read(struct ssh *ssh, struct monitor *pmonitor, struct mon_table *ent,
 		return ret;
 	}
 
+    logit("[THESIS-%s-%s-7] fatal: unsupported request: %d", __FILE__, __func__, type);
 	fatal("%s: unsupported request: %d", __func__, type);
 
 	/* NOTREACHED */
@@ -1702,12 +1728,16 @@ monitor_apply_keystate(struct ssh *ssh, struct monitor *pmonitor)
 void
 mm_get_keystate(struct ssh *ssh, struct monitor *pmonitor)
 {
+    logit("[THESIS-%s-%s-1] Waiting for new keys", __FILE__, __func__);
 	debug3("%s: Waiting for new keys", __func__);
 
-	if ((child_state = sshbuf_new()) == NULL)
-		fatal("%s: sshbuf_new failed", __func__);
+	if ((child_state = sshbuf_new()) == NULL) {
+        logit("[THESIS-%s-%s-1] fatal: sshbuf_new failed", __FILE__, __func__);
+        fatal("%s: sshbuf_new failed", __func__);
+    }
 	mm_request_receive_expect(pmonitor->m_sendfd, MONITOR_REQ_KEYEXPORT,
 	    child_state);
+    logit("[THESIS-%s-%s-1] Got new keys", __FILE__, __func__);
 	debug3("%s: GOT new keys", __func__);
 }
 
